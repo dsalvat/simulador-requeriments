@@ -1,0 +1,23 @@
+{
+  "name": "simulador-requeriments",
+  "version": "1.0.0",
+  "description": "Simulador de Presa de Requeriments — Role-playing amb veu i avatars animats",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "npm run build && node server.js",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "simli-client": "^2.0.0",
+    "vite": "^6.2.2"
+  }
+}
