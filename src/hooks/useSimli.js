@@ -6,14 +6,26 @@ export function useSimli() {
   const audioRef = useRef(null);
   const clientRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
-  const [avatarState, setAvatarState] = useState("idle");
 
   const initialize = useCallback(async (faceId) => {
     // Clean up any existing session
     if (clientRef.current) {
       clientRef.current.close();
       clientRef.current = null;
+      setIsReady(false);
     }
+
+    // Wait for refs to be attached to DOM elements
+    const waitForRefs = () => new Promise((resolve, reject) => {
+      let attempts = 0;
+      const check = () => {
+        if (videoRef.current && audioRef.current) return resolve();
+        if (++attempts > 50) return reject(new Error('Simli: videoRef/audioRef not available'));
+        setTimeout(check, 100);
+      };
+      check();
+    });
+    await waitForRefs();
 
     // 1. Get session token from server
     const res = await fetch('/api/simli-token', {
@@ -24,10 +36,11 @@ export function useSimli() {
     if (!res.ok) throw new Error(`Simli token failed: ${res.status}`);
     const sessionData = await res.json();
 
-    // 2. Create and configure SimliClient
+    // 2. Create and configure SimliClient with session_token (not apiKey)
     const client = new SimliClient();
     client.Initialize({
-      apiKey: sessionData.session_token || sessionData.apiKey || '',
+      apiKey: '',
+      session_token: sessionData.session_token,
       faceID: faceId,
       handleSilence: true,
       maxSessionLength: 3600,
@@ -40,7 +53,6 @@ export function useSimli() {
     await client.start();
     clientRef.current = client;
     setIsReady(true);
-    setAvatarState("idle");
   }, []);
 
   const cleanup = useCallback(() => {
@@ -49,8 +61,7 @@ export function useSimli() {
       clientRef.current = null;
     }
     setIsReady(false);
-    setAvatarState("idle");
   }, []);
 
-  return { videoRef, audioRef, clientRef, isReady, avatarState, setAvatarState, initialize, cleanup };
+  return { videoRef, audioRef, clientRef, isReady, initialize, cleanup };
 }

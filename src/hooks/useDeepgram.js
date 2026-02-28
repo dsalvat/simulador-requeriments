@@ -15,26 +15,29 @@ export function useDeepgram() {
     finalTranscriptRef.current = "";
 
     try {
-      // 1. Get temporary token from server
+      // 1. Request microphone FIRST (needs user gesture, do before async WS)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+      });
+      mediaStreamRef.current = stream;
+
+      // 2. Get token from server
       const tokenRes = await fetch('/api/deepgram-token', { method: 'POST' });
       if (!tokenRes.ok) throw new Error('Failed to get Deepgram token');
       const tokenData = await tokenRes.json();
       const token = tokenData.access_token || tokenData.key;
 
-      // 2. Open WebSocket to Deepgram
-      const ws = new WebSocket(
-        `wss://api.deepgram.com/v1/listen?model=nova-3&language=ca&smart_format=true&interim_results=true&encoding=linear16&sample_rate=16000&channels=1&token=${token}`
-      );
+      if (!token) throw new Error('No Deepgram token received');
+
+      // 3. Open WebSocket to Deepgram — authenticate via Authorization header in URL
+      const wsUrl = `wss://api.deepgram.com/v1/listen?model=nova-2&language=es&smart_format=true&interim_results=true&encoding=linear16&sample_rate=16000&channels=1`;
+
+      // Deepgram supports auth via WebSocket subprotocol: ['token', '<key>']
+      const ws = new WebSocket(wsUrl, ['token', token]);
       wsRef.current = ws;
 
-      ws.onopen = async () => {
-        // 3. Capture microphone
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
-        });
-        mediaStreamRef.current = stream;
-
-        // 4. AudioContext to extract PCM16 chunks
+      ws.onopen = () => {
+        // 4. AudioContext to extract PCM16 chunks and pipe to WebSocket
         const audioContext = new AudioContext({ sampleRate: 16000 });
         audioContextRef.current = audioContext;
         const source = audioContext.createMediaStreamSource(stream);
@@ -72,10 +75,18 @@ export function useDeepgram() {
         } catch {}
       };
 
-      ws.onerror = () => setIsListening(false);
+      ws.onerror = (e) => {
+        console.error('Deepgram WebSocket error:', e);
+        // Clean up microphone on error
+        stream.getTracks().forEach(t => t.stop());
+        setIsListening(false);
+      };
       ws.onclose = () => setIsListening(false);
     } catch (err) {
       console.error('Deepgram start error:', err);
+      // Clean up microphone if it was opened
+      mediaStreamRef.current?.getTracks().forEach(t => t.stop());
+      mediaStreamRef.current = null;
       setIsListening(false);
     }
   }, []);

@@ -69,7 +69,7 @@ app.post('/api/tts', async (req, res) => {
 
   try {
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=pcm_16000&optimize_streaming_latency=3`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream?output_format=pcm_16000`,
       {
         method: 'POST',
         headers: {
@@ -78,8 +78,8 @@ app.post('/api/tts', async (req, res) => {
         },
         body: JSON.stringify({
           text,
-          model_id: 'eleven_flash_v2_5',
-          language_code: 'ca'
+          model_id: 'eleven_multilingual_v2',
+          language_code: 'es'
         })
       }
     );
@@ -105,6 +105,7 @@ app.post('/api/tts', async (req, res) => {
 app.post('/api/deepgram-token', async (req, res) => {
   if (!DEEPGRAM_API_KEY) return res.status(503).json({ error: 'Deepgram not configured' });
   try {
+    // Try to get a temporary token first (requires keys:write permission)
     const response = await fetch('https://api.deepgram.com/v1/auth/grant', {
       method: 'POST',
       headers: {
@@ -113,8 +114,12 @@ app.post('/api/deepgram-token', async (req, res) => {
       },
       body: JSON.stringify({ time_to_live_in_seconds: 120 })
     });
-    const data = await response.json();
-    res.json(data);
+    if (response.ok) {
+      const data = await response.json();
+      return res.json(data);
+    }
+    // Fallback: return the API key directly for WebSocket auth
+    res.json({ key: DEEPGRAM_API_KEY });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -129,10 +134,10 @@ app.post('/api/simli-token', async (req, res) => {
     const response = await fetch('https://api.simli.ai/startAudioToVideoSession', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'x-simli-api-key': SIMLI_API_KEY
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey: SIMLI_API_KEY,
         faceId,
         handleSilence: true,
         maxSessionLength: 3600,

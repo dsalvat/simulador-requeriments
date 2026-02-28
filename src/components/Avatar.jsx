@@ -101,7 +101,7 @@ export default function Avatar({ persona, state, size = 200 }) {
         color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 12px",
         borderRadius: 20, whiteSpace: "nowrap", transition: "all 0.3s"
       }}>
-        {state === "speaking" ? "Parlant..." : state === "listening" ? "Escoltant..." : state === "thinking" ? "Pensant..." : "En espera"}
+        {state === "speaking" ? "Hablando..." : state === "listening" ? "Escuchando..." : state === "thinking" ? "Pensando..." : "En espera"}
       </div>
     </div>
   );
