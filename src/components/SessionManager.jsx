@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { CHECKLIST } from "../data";
 
-const CHECKLIST_TOTAL = 23;
+const CHECKLIST_TOTAL = CHECKLIST.length;
 
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token');
