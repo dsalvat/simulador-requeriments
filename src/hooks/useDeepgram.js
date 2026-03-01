@@ -22,7 +22,11 @@ export function useDeepgram() {
       mediaStreamRef.current = stream;
 
       // 2. Get token from server
-      const tokenRes = await fetch('/api/deepgram-token', { method: 'POST' });
+      const authToken = localStorage.getItem('auth_token');
+      const tokenRes = await fetch('/api/deepgram-token', {
+        method: 'POST',
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
+      });
       if (!tokenRes.ok) throw new Error('Failed to get Deepgram token');
       const tokenData = await tokenRes.json();
       const token = tokenData.access_token || tokenData.key;

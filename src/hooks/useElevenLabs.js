@@ -15,9 +15,10 @@ export function useElevenLabs(simliClientRef) {
     abortControllerRef.current = abortController;
 
     try {
+      const authToken = localStorage.getItem('auth_token');
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
         body: JSON.stringify({ text, voiceId }),
         signal: abortController.signal
       });

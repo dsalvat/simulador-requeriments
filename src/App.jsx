@@ -5,6 +5,10 @@ import Avatar from "./components/Avatar";
 import SimliAvatar from "./components/SimliAvatar";
 import MiniChecklist from "./components/MiniChecklist";
 import AchievementToast from "./components/AchievementToast";
+import LoginScreen from "./components/LoginScreen";
+import AdminPanel from "./components/AdminPanel";
+import UserMenu from "./components/UserMenu";
+import { useAuth } from "./hooks/useAuth";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "./hooks/useSpeechSynthesis";
 import { useDeepgram } from "./hooks/useDeepgram";
@@ -16,6 +20,7 @@ import { useSimli } from "./hooks/useSimli";
 // ============================================================
 
 export default function App() {
+  const { user: authUser, authLoading, authError, loginWithGoogle, logout } = useAuth();
   const [screen, setScreen] = useState("select");
   const [persona, setPersona] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -256,6 +261,41 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     );
   }
 
+  // ========== AUTH LOADING ==========
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+        background: "var(--bg-primary)",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: "50%",
+            border: "3px solid var(--border)", borderTopColor: "var(--accent)",
+            animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // ========== LOGIN SCREEN ==========
+  if (!authUser) {
+    return <LoginScreen onGoogleLogin={loginWithGoogle} authError={authError} />;
+  }
+
+  // ========== ADMIN SCREEN ==========
+  if (screen === "admin") {
+    return (
+      <AdminPanel
+        currentUser={authUser}
+        onBack={() => setScreen("select")}
+        onLogout={logout}
+      />
+    );
+  }
+
   // ========== SELECT SCREEN ==========
   if (screen === "select") {
     return (
@@ -271,6 +311,15 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
         }} />
 
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "48px 24px", position: "relative" }}>
+          {/* User menu */}
+          <div style={{ position: "absolute", top: 16, right: 24, zIndex: 10 }}>
+            <UserMenu
+              user={authUser}
+              onAdmin={() => setScreen("admin")}
+              onLogout={logout}
+            />
+          </div>
+
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 48, animation: "fadeSlideUp 0.6s ease-out" }}>
             <h1 style={{

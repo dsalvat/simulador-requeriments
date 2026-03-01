@@ -1,8 +1,13 @@
+function getAuthHeaders() {
+  const token = localStorage.getItem('auth_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
 export async function callClaude(messages, systemPrompt) {
   try {
     const res = await fetch('/api/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 800,
@@ -15,10 +20,10 @@ export async function callClaude(messages, systemPrompt) {
       throw new Error(err.error?.message || `HTTP ${res.status}`);
     }
     const data = await res.json();
-    return data.content?.map(b => b.text || "").join("\n") || "Error de connexió.";
+    return data.content?.map(b => b.text || "").join("\n") || "Error de conexión.";
   } catch (e) {
     console.error('API error:', e);
-    return `⚠️ Error de connexió: ${e.message}. Verifica que el servidor està actiu.`;
+    return `Error de conexión: ${e.message}. Verifica que el servidor está activo.`;
   }
 }
 

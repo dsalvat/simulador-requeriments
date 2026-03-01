@@ -28,9 +28,10 @@ export function useSimli() {
     await waitForRefs();
 
     // 1. Get session token from server
+    const authToken = localStorage.getItem('auth_token');
     const res = await fetch('/api/simli-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
       body: JSON.stringify({ faceId })
     });
     if (!res.ok) throw new Error(`Simli token failed: ${res.status}`);

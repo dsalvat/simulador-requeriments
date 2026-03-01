@@ -1,3 +1,6 @@
 {
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/admin/users/:id", "destination": "/api/admin/users/[id]" }
+  ]
 }
