@@ -80,7 +80,7 @@ export default function App() {
   const processResponse = useCallback(async (userText, currentPersona, currentApiMessages) => {
     const isEval = /\b(ya tengo|tengo toda|evalúa|evalua|he acabado|fin de la reunión|finaliz|acabemos|ya estoy)\b/i.test(userText);
 
-    setMessages(prev => [...prev, { role: "user", text: userText }]);
+    setMessages(prev => [...prev, { role: "user", text: userText, time: new Date() }]);
     setLoading(true);
 
     if (isEval) {
@@ -127,7 +127,7 @@ PUNTOS FUERTES:
     const updatedApi = [...newApi, { role: "assistant", content: reply }];
 
     setApiMessages(updatedApi);
-    setMessages(prev => [...prev, { role: "persona", text: reply }]);
+    setMessages(prev => [...prev, { role: "persona", text: reply, time: new Date() }]);
     setLoading(false);
 
     if (voiceMode) {
@@ -228,7 +228,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     const init = [{ role: "user", content: "[Llegas a la sala de reuniones. El técnico de sistemas te ha invitado para recoger requerimientos. Saluda brevemente.]" }];
     const reply = await callClaude(init, p.system + "\n\nEMPIEZA saludando brevemente. NO des toda la info de golpe. SIEMPRE en castellano.");
     setApiMessages([...init, { role: "assistant", content: reply }]);
-    setMessages([{ role: "persona", text: reply }]);
+    setMessages([{ role: "persona", text: reply, time: new Date() }]);
     setLoading(false);
 
     if (voiceMode) {
@@ -363,10 +363,20 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             }}>
               Simulador
             </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: 16, margin: "0 0 16px", maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: 16, margin: "0 0 12px", maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
               Practica la toma de requerimientos con personajes realistas
             </p>
-            <div style={{ width: 48, height: 3, background: "var(--accent)", borderRadius: 2, margin: "0 auto 24px" }} />
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 16, marginBottom: 24,
+              padding: "6px 16px", borderRadius: 20, background: "var(--bg-secondary)",
+              fontSize: 12, color: "var(--text-muted)",
+            }}>
+              <span>{PERSONAS.length} personajes</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-muted)" }} />
+              <span>{CHECKLIST.length} checkpoints</span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-muted)" }} />
+              <span>5 fases</span>
+            </div>
 
             {/* Voice/Text toggle */}
             <div style={{
@@ -435,31 +445,45 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           <div className="persona-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
             {PERSONAS.map((p, idx) => (
               <button key={p.id} onClick={() => startSession(p)} style={{
-                background: "var(--bg-surface)", border: "none", borderRadius: 14,
-                padding: "20px 16px 16px", cursor: "pointer", textAlign: "center",
-                borderTop: `4px solid ${p.color}`,
+                background: "var(--bg-surface)", border: "none", borderRadius: 16,
+                padding: "0", cursor: "pointer", textAlign: "center",
                 boxShadow: "var(--shadow-sm)",
-                transition: "all 0.25s ease",
-                animation: `fadeSlideUp 0.5s ease-out ${idx * 0.08}s both`
+                transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                animation: `fadeSlideUp 0.5s ease-out ${idx * 0.08}s both`,
+                overflow: "hidden", position: "relative",
               }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow-lg)"; e.currentTarget.style.transform = "translateY(-4px)"; }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 12px 40px ${p.color}25`; e.currentTarget.style.transform = "translateY(-6px)"; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = "var(--shadow-sm)"; e.currentTarget.style.transform = "none"; }}
               >
-                <img src={p.previewImg} alt={p.name} style={{
-                  width: 90, height: 90, borderRadius: "50%", objectFit: "cover",
-                  border: `3px solid ${p.color}20`, margin: "0 auto"
-                }} />
+                {/* Color header strip */}
                 <div style={{
-                  fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 18,
-                  color: "var(--text-primary)", marginTop: 10
-                }}>{p.name}</div>
-                <div style={{ fontSize: 12, color: p.color, fontWeight: 600, marginBottom: 4 }}>{p.role}</div>
-                <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{p.description}</div>
-                <span style={{
-                  padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 600, letterSpacing: "0.03em",
-                  background: p.difficulty === "Fácil" ? "var(--success-bg)" : p.difficulty === "Difícil" ? "var(--danger-bg)" : "var(--warning-bg)",
-                  color: p.difficulty === "Fácil" ? "var(--success)" : p.difficulty === "Difícil" ? "var(--danger)" : "var(--warning)"
-                }}>{p.difficulty}</span>
+                  background: `linear-gradient(135deg, ${p.color} 0%, ${p.color}CC 100%)`,
+                  padding: "20px 16px 28px", position: "relative",
+                }}>
+                  <img src={p.previewImg} alt={p.name} style={{
+                    width: 80, height: 80, borderRadius: "50%", objectFit: "cover",
+                    border: "3px solid rgba(255,255,255,0.9)", margin: "0 auto",
+                    display: "block",
+                  }} />
+                  {/* Difficulty badge overlapping */}
+                  <span style={{
+                    position: "absolute", bottom: -10, left: "50%", transform: "translateX(-50%)",
+                    padding: "3px 12px", borderRadius: 20, fontSize: 10, fontWeight: 700,
+                    letterSpacing: "0.04em", textTransform: "uppercase",
+                    background: "var(--bg-surface)",
+                    color: p.difficulty === "Fácil" ? "var(--success)" : p.difficulty === "Difícil" ? "var(--danger)" : "var(--warning)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}>{p.difficulty}</span>
+                </div>
+                {/* Content */}
+                <div style={{ padding: "18px 14px 16px" }}>
+                  <div style={{
+                    fontFamily: "'DM Serif Display', serif", fontWeight: 400, fontSize: 18,
+                    color: "var(--text-primary)", marginBottom: 2,
+                  }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: p.color, fontWeight: 600, marginBottom: 6 }}>{p.role}</div>
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", lineHeight: 1.4 }}>{p.description}</div>
+                </div>
               </button>
             ))}
           </div>
@@ -470,15 +494,18 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             animation: "fadeSlideUp 0.6s ease-out 0.5s both"
           }}>
             {[
-              { num: "1", title: "Selecciona", desc: "Elige un avatar con el nivel de dificultad que quieras" },
-              { num: "2", title: "Conversa", desc: "Haz de técnico y extrae toda la información siguiendo el guion" },
-              { num: "3", title: "Evalúa", desc: "Di \"ya tengo toda la información\" para recibir la evaluación" }
+              { num: "1", title: "Selecciona", desc: "Elige un avatar con el nivel de dificultad que quieras",
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg> },
+              { num: "2", title: "Conversa", desc: "Haz de t\u00e9cnico y extrae toda la informaci\u00f3n siguiendo el guion",
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+              { num: "3", title: "Eval\u00faa", desc: "Di \"ya tengo toda la informaci\u00f3n\" para recibir la evaluaci\u00f3n",
+                icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> },
             ].map(step => (
               <div key={step.num} style={{ textAlign: "center", padding: "20px 12px" }}>
                 <div style={{
-                  fontFamily: "'DM Serif Display', serif", fontSize: 32, color: "var(--accent-light)",
-                  marginBottom: 8, lineHeight: 1
-                }}>{step.num}</div>
+                  width: 48, height: 48, borderRadius: 14, margin: "0 auto 10px",
+                  background: "var(--accent-subtle)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>{step.icon}</div>
                 <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary)", marginBottom: 4 }}>{step.title}</div>
                 <div style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>{step.desc}</div>
               </div>
@@ -513,14 +540,35 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     return (
       <div style={{ minHeight: "100vh", background: "var(--bg-primary)", padding: "40px 24px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          {/* Persona header bar */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 16, marginBottom: 28,
+            padding: "16px 20px", background: "var(--bg-surface)", borderRadius: 14,
+            border: "1px solid var(--border)", animation: "fadeSlideUp 0.4s ease-out",
+          }}>
+            <img src={persona?.previewImg} alt={persona?.name} style={{
+              width: 52, height: 52, borderRadius: "50%", objectFit: "cover",
+              border: `3px solid ${persona?.color}30`,
+            }} />
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400,
+                color: "var(--text-primary)",
+              }}>Debrief &mdash; {persona?.name}</div>
+              <div style={{ fontSize: 13, color: persona?.color, fontWeight: 500 }}>{persona?.role}</div>
+            </div>
+            <div style={{
+              fontSize: 11, color: "var(--text-muted)", textAlign: "right",
+            }}>
+              {messages.length} mensajes<br />
+              {session.activeSession ? `Sesión #${session.activeSession.id}` : "Modo libre"}
+            </div>
+          </div>
+
           {/* Two-column layout */}
           <div className="eval-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
             {/* Left: evaluation text */}
             <div style={{ animation: "fadeSlideUp 0.5s ease-out 0.2s both" }}>
-              <h2 style={{
-                fontFamily: "'DM Serif Display', serif", fontSize: 28, fontWeight: 400,
-                color: "var(--text-primary)", margin: "0 0 24px"
-              }}>Debrief</h2>
 
               {/* General evaluation */}
               {avaluacioText && (
@@ -800,26 +848,45 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
         {/* Messages */}
         <div ref={chatRef} style={{ flex: 1, overflow: "auto", padding: "16px 20px" }}>
           <div style={{ maxWidth: 620, margin: "0 auto" }}>
-            {messages.map((m, i) => (
-              <div key={i} style={{
-                display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start",
-                marginBottom: 12, animation: "slideInMessage 0.3s ease-out"
-              }}>
-                <div style={{
-                  maxWidth: "80%", padding: "12px 16px", fontSize: 14, lineHeight: 1.65,
-                  borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                  background: m.role === "user" ? "var(--accent)" : "var(--bg-surface)",
-                  color: m.role === "user" ? "var(--text-inverse)" : "var(--text-primary)",
-                  borderLeft: m.role === "persona" ? `3px solid ${persona.color}` : "none",
-                  boxShadow: "var(--shadow-sm)"
+            {messages.map((m, i) => {
+              const timeStr = m.time ? m.time.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }) : "";
+              return (
+                <div key={i} style={{
+                  display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start",
+                  marginBottom: 14, animation: "slideInMessage 0.3s ease-out"
                 }}>
                   {m.role === "persona" && (
-                    <div style={{ fontSize: 11, fontWeight: 600, color: persona.color, marginBottom: 4 }}>{persona.name}</div>
+                    <img src={persona.previewImg} alt="" style={{
+                      width: 30, height: 30, borderRadius: "50%", objectFit: "cover",
+                      marginRight: 8, marginTop: 4, flexShrink: 0,
+                    }} />
                   )}
-                  {m.text}
+                  <div style={{ maxWidth: "78%" }}>
+                    <div style={{
+                      padding: "12px 16px", fontSize: 14, lineHeight: 1.65,
+                      borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                      background: m.role === "user" ? "var(--accent)" : "var(--bg-surface)",
+                      color: m.role === "user" ? "var(--text-inverse)" : "var(--text-primary)",
+                      borderLeft: m.role === "persona" ? `3px solid ${persona.color}` : "none",
+                      boxShadow: "var(--shadow-sm)"
+                    }}>
+                      {m.role === "persona" && (
+                        <div style={{ fontSize: 11, fontWeight: 600, color: persona.color, marginBottom: 4 }}>{persona.name}</div>
+                      )}
+                      {m.text}
+                    </div>
+                    {timeStr && (
+                      <div style={{
+                        fontSize: 10, color: "var(--text-muted)", marginTop: 3,
+                        textAlign: m.role === "user" ? "right" : "left",
+                        paddingLeft: m.role === "persona" ? 4 : 0,
+                        paddingRight: m.role === "user" ? 4 : 0,
+                      }}>{timeStr}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading && (
               <div style={{ display: "flex", animation: "slideInMessage 0.3s ease-out" }}>
                 <div style={{
