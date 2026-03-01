@@ -265,14 +265,17 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
   }, [session.timeLeft, screen, triggerEval]);
 
   // ── Auto-eval when admin stops the session ────────────────
+  const [sessionStopOverlay, setSessionStopOverlay] = useState(false);
   useEffect(() => {
     if (session.sessionStopped) {
       session.clearSessionStopped();
       if (screen === "chat" && !autoEvalTriggered.current) {
         autoEvalTriggered.current = true;
-        triggerEval();
-      } else if (screen === "select") {
-        // Force re-render to hide the banner (polling already updated activeSession)
+        setSessionStopOverlay(true);
+        setTimeout(() => {
+          setSessionStopOverlay(false);
+          triggerEval();
+        }, 2500);
       }
     }
   }, [session.sessionStopped, screen, triggerEval]);
@@ -290,7 +293,6 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
           <div style={{ color: "var(--text-muted)", fontSize: 14 }}>Cargando...</div>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
@@ -308,7 +310,6 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             border: "3px solid var(--border)", borderTopColor: "var(--accent)",
             animation: "spin 0.8s linear infinite", margin: "0 auto 16px",
           }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </div>
     );
@@ -355,7 +356,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           </div>
 
           {/* Header */}
-          <div style={{ textAlign: "center", marginBottom: 48, animation: "fadeSlideUp 0.6s ease-out" }}>
+          <div className="select-header" style={{ textAlign: "center", marginBottom: 48, animation: "fadeSlideUp 0.6s ease-out" }}>
             <h1 style={{
               fontFamily: "'DM Serif Display', serif", fontSize: 40, fontWeight: 400,
               color: "var(--text-primary)", margin: "0 0 8px", letterSpacing: "-0.02em"
@@ -394,7 +395,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
 
           {/* Session banner */}
           {session.sessionActive && (
-            <div style={{
+            <div className="session-banner" style={{
               background: "linear-gradient(135deg, var(--accent) 0%, #a0472e 100%)",
               borderRadius: 16, padding: "28px 32px", marginBottom: 32,
               color: "#fff", textAlign: "center",
@@ -404,7 +405,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
               <div style={{ fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.85, marginBottom: 8 }}>
                 Sesi&oacute;n Activa
               </div>
-              <div style={{
+              <div className="timer-big" style={{
                 fontFamily: "'DM Serif Display', serif", fontSize: 48, fontWeight: 400,
                 fontVariantNumeric: "tabular-nums", marginBottom: 8,
               }}>
@@ -431,7 +432,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           )}
 
           {/* Persona cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
+          <div className="persona-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
             {PERSONAS.map((p, idx) => (
               <button key={p.id} onClick={() => startSession(p)} style={{
                 background: "var(--bg-surface)", border: "none", borderRadius: 14,
@@ -464,7 +465,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           </div>
 
           {/* How it works */}
-          <div style={{
+          <div className="how-it-works" style={{
             marginTop: 40, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20,
             animation: "fadeSlideUp 0.6s ease-out 0.5s both"
           }}>
@@ -513,7 +514,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
       <div style={{ minHeight: "100vh", background: "var(--bg-primary)", padding: "40px 24px" }}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           {/* Two-column layout */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
+          <div className="eval-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 32, alignItems: "start" }}>
             {/* Left: evaluation text */}
             <div style={{ animation: "fadeSlideUp 0.5s ease-out 0.2s both" }}>
               <h2 style={{
@@ -558,7 +559,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             </div>
 
             {/* Right: score + checklist */}
-            <div>
+            <div className="eval-right">
               {/* Circular gauge */}
               <div style={{
                 background: "var(--bg-surface)", borderRadius: 16, padding: 32,
@@ -624,6 +625,55 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
   // ========== CHAT SCREEN ==========
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: "var(--bg-secondary)" }}>
+      {/* Session stopped overlay */}
+      {sessionStopOverlay && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 1000,
+          background: "rgba(28,28,30,0.85)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          animation: "overlayFadeIn 0.4s ease-out",
+        }}>
+          <div style={{
+            textAlign: "center", color: "#fff",
+            animation: "overlayContentIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}>
+            <div style={{
+              width: 72, height: 72, borderRadius: "50%", margin: "0 auto 20px",
+              background: "linear-gradient(135deg, var(--danger) 0%, #8a2020 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 0 40px rgba(184,58,58,0.4)",
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+                <rect x="6" y="4" width="12" height="16" rx="1" />
+                <line x1="10" y1="9" x2="14" y2="9" />
+                <line x1="10" y1="13" x2="14" y2="13" />
+              </svg>
+            </div>
+            <div style={{
+              fontFamily: "'DM Serif Display', serif", fontSize: 28, fontWeight: 400,
+              marginBottom: 8, letterSpacing: "-0.01em",
+            }}>
+              Sesi&oacute;n Finalizada
+            </div>
+            <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 24 }}>
+              El administrador ha detenido la sesi&oacute;n
+            </div>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              background: "rgba(255,255,255,0.1)", borderRadius: 12,
+              padding: "10px 20px", fontSize: 13, fontWeight: 500,
+            }}>
+              <div style={{
+                width: 16, height: 16, borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff",
+                animation: "spin 0.8s linear infinite",
+              }} />
+              Generando evaluaci&oacute;n...
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header — dark */}
       <div style={{
         background: "var(--bg-deep)", padding: "10px 20px",
@@ -644,7 +694,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             <div style={{ color: "var(--text-muted)", fontSize: 11 }}>{persona?.subtitle}</div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {/* Session timer */}
           {session.sessionActive && session.timeLeft !== null && (
             <div style={{
@@ -677,11 +727,17 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           </button>
           <button onClick={triggerEval} style={{
             background: "var(--accent)", color: "var(--text-inverse)", border: "none", borderRadius: 8,
-            padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "opacity 0.2s"
+            padding: "7px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "opacity 0.2s",
+            display: "flex", alignItems: "center", gap: 4,
           }}
             onMouseEnter={e => e.currentTarget.style.opacity = "0.85"}
             onMouseLeave={e => e.currentTarget.style.opacity = "1"}
-          >Evaluar</button>
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            <span className="eval-btn-text">Evaluar</span>
+          </button>
           <button onClick={exitSession} style={{
             background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8,
             padding: "7px 12px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer",
