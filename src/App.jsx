@@ -9,6 +9,7 @@ import LoginScreen from "./components/LoginScreen";
 import AdminPanel from "./components/AdminPanel";
 import UserMenu from "./components/UserMenu";
 import { useAuth } from "./hooks/useAuth";
+import { useSession } from "./hooks/useSession";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "./hooks/useSpeechSynthesis";
 import { useDeepgram } from "./hooks/useDeepgram";
@@ -21,6 +22,7 @@ import { useSimli } from "./hooks/useSimli";
 
 export default function App() {
   const { user: authUser, authLoading, authError, loginWithGoogle, logout } = useAuth();
+  const session = useSession(authUser);
   const [screen, setScreen] = useState("select");
   const [persona, setPersona] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -109,7 +111,12 @@ PUNTOS FUERTES:
       if (match) match[1].split(",").forEach(id => { const tr = id.trim(); if (CHECKLIST.find(c => c.id === tr)) nc.add(tr); });
       setCompleted(nc);
       setEvalScore(nc.size);
-      setEvaluation(reply.replace(/COMPLETADOS:.*\n*/i, "").trim());
+      const evalText = reply.replace(/COMPLETADOS:.*\n*/i, "").trim();
+      setEvaluation(evalText);
+      // Save final score to session DB
+      if (session.activeSession) {
+        session.saveScore(session.activeSession.id, currentPersona.id, nc.size, Array.from(nc), evalText);
+      }
       setScreen("eval");
       setLoading(false);
       return;
@@ -167,6 +174,10 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             fase: item.fase,
           }))
         ]);
+        // Save incremental score to session DB
+        if (session.activeSession) {
+          session.saveScore(session.activeSession.id, currentPersona.id, newCompleted.size, Array.from(newCompleted), null);
+        }
       }
     });
   }, [messages, voiceMode, isSaas, fallbackTTS, elevenLabsTTS]);
@@ -242,6 +253,16 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     if (stt.isListening) stt.stopListening();
     processResponse("Ya tengo toda la información, evalúame.", persona, apiMessages);
   }, [tts, stt, persona, apiMessages, processResponse]);
+
+  // ── Auto-eval when session time runs out ──────────────────
+  const autoEvalTriggered = useRef(false);
+  useEffect(() => {
+    if (session.timeLeft === 0 && screen === "chat" && !autoEvalTriggered.current) {
+      autoEvalTriggered.current = true;
+      triggerEval();
+    }
+    if (session.timeLeft > 0) autoEvalTriggered.current = false;
+  }, [session.timeLeft, screen, triggerEval]);
 
   // ── Progress helpers ──────────────────────────────────────
   const totalItems = CHECKLIST.length;
@@ -357,6 +378,44 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
               {isSaas ? "Simli + ElevenLabs + Deepgram" : "Modo local (Web Speech API + SVG)"}
             </div>
           </div>
+
+          {/* Session banner */}
+          {session.sessionActive && (
+            <div style={{
+              background: "linear-gradient(135deg, var(--accent) 0%, #a0472e 100%)",
+              borderRadius: 16, padding: "28px 32px", marginBottom: 32,
+              color: "#fff", textAlign: "center",
+              boxShadow: "0 8px 32px rgba(196,93,62,0.3)",
+              animation: "fadeSlideUp 0.5s ease-out",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", opacity: 0.85, marginBottom: 8 }}>
+                Sesi&oacute;n Activa
+              </div>
+              <div style={{
+                fontFamily: "'DM Serif Display', serif", fontSize: 48, fontWeight: 400,
+                fontVariantNumeric: "tabular-nums", marginBottom: 8,
+              }}>
+                {Math.floor(session.timeLeft / 60)}:{String(session.timeLeft % 60).padStart(2, '0')}
+              </div>
+              <p style={{ fontSize: 14, opacity: 0.9, margin: "0 0 20px" }}>
+                Se te asignar&aacute; un personaje aleatorio. &iexcl;Consigue el m&aacute;ximo de puntos!
+              </p>
+              <button onClick={() => {
+                const available = PERSONAS.slice(0, 5);
+                const random = available[Math.floor(Math.random() * available.length)];
+                startSession(random);
+              }} style={{
+                background: "#fff", color: "var(--accent)", border: "none",
+                padding: "14px 40px", borderRadius: 12, fontSize: 16, fontWeight: 700,
+                cursor: "pointer", transition: "transform 0.2s",
+              }}
+                onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+              >
+                Unirse a la Sesi&oacute;n
+              </button>
+            </div>
+          )}
 
           {/* Persona cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
@@ -573,6 +632,17 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Session timer */}
+          {session.sessionActive && session.timeLeft !== null && (
+            <div style={{
+              background: session.timeLeft < 60 ? "var(--danger)" : "var(--accent)",
+              color: "#fff", padding: "5px 14px", borderRadius: 8,
+              fontSize: 15, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+              animation: session.timeLeft < 60 ? "pulse 1s infinite" : "none",
+            }}>
+              {Math.floor(session.timeLeft / 60)}:{String(session.timeLeft % 60).padStart(2, '0')}
+            </div>
+          )}
           {/* Progress ring */}
           <button
             onClick={() => setShowChecklist(!showChecklist)}

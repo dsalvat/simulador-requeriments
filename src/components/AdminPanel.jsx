@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import SessionManager from "./SessionManager.jsx";
 
 function getAuthHeaders() {
   const token = localStorage.getItem('auth_token');
@@ -51,6 +52,7 @@ function Toggle({ checked, onChange, disabled }) {
 }
 
 export default function AdminPanel({ currentUser, onBack, onLogout }) {
+  const [activeTab, setActiveTab] = useState("sessions");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
@@ -144,6 +146,27 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
 
       {/* Content */}
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px" }}>
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0, marginBottom: 32, borderBottom: "2px solid var(--border)" }}>
+          {[
+            { id: "sessions", label: "Sesiones de Juego" },
+            { id: "users", label: "Usuarios" },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+              background: "none", border: "none", padding: "12px 24px",
+              fontSize: 15, fontWeight: activeTab === tab.id ? 600 : 400, cursor: "pointer",
+              color: activeTab === tab.id ? "var(--accent)" : "var(--text-muted)",
+              borderBottom: activeTab === tab.id ? "2px solid var(--accent)" : "2px solid transparent",
+              marginBottom: -2, transition: "all 0.2s",
+            }}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "sessions" && <SessionManager />}
+
+        {activeTab === "users" && <>
         {/* Stats */}
         <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
           {[
@@ -257,6 +280,7 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
             ))}
           </div>
         )}
+        </>}
       </div>
 
       {/* Invite modal */}

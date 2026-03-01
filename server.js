@@ -261,6 +261,129 @@ app.post('/api/simli-token', async (req, res) => {
   }
 });
 
+// ── Admin: List / Create sessions ─────────────────────────────────
+app.get('/api/admin/sessions', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `SELECT s.*, u.name as created_by_name,
+     (SELECT COUNT(*) FROM session_participants WHERE session_id = s.id) as participant_count
+     FROM sessions s JOIN users u ON u.id = s.created_by
+     ORDER BY s.created_at DESC LIMIT 50`
+  );
+  res.json({ sessions: result.rows });
+});
+
+app.post('/api/admin/sessions', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const duration = parseInt(req.body.duration_min) || 15;
+  try {
+    const result = await query(
+      'INSERT INTO sessions (created_by, duration_min) VALUES ($1, $2) RETURNING *',
+      [admin.id, duration]
+    );
+    res.json({ session: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Start session ──────────────────────────────────────────
+app.post('/api/admin/sessions/:id/start', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `UPDATE sessions SET status = 'active', started_at = NOW()
+     WHERE id = $1 AND status = 'created' RETURNING *`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no disponible para iniciar' });
+  res.json({ session: result.rows[0] });
+});
+
+// ── Admin: Stop session ───────────────────────────────────────────
+app.post('/api/admin/sessions/:id/stop', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `UPDATE sessions SET status = 'finished', finished_at = NOW()
+     WHERE id = $1 AND status = 'active' RETURNING *`,
+    [req.params.id]
+  );
+  if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no activa' });
+  res.json({ session: result.rows[0] });
+});
+
+// ── Admin: Session ranking ────────────────────────────────────────
+app.get('/api/admin/sessions/:id/ranking', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const sessionResult = await query('SELECT * FROM sessions WHERE id = $1', [req.params.id]);
+  if (sessionResult.rows.length === 0) return res.status(404).json({ error: 'Sesión no encontrada' });
+
+  const ranking = await query(
+    `SELECT sp.user_id, sp.persona_id, sp.score, sp.completed_items, sp.evaluation,
+            sp.joined_at, sp.finished_at, u.name, u.email, u.avatar_url
+     FROM session_participants sp JOIN users u ON u.id = sp.user_id
+     WHERE sp.session_id = $1
+     ORDER BY sp.score DESC, sp.joined_at ASC`,
+    [req.params.id]
+  );
+  res.json({ session: sessionResult.rows[0], ranking: ranking.rows });
+});
+
+// ── User: Get active session ──────────────────────────────────────
+app.get('/api/sessions/active', async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const sessionResult = await query(
+    "SELECT * FROM sessions WHERE status = 'active' ORDER BY started_at DESC LIMIT 1"
+  );
+  if (sessionResult.rows.length === 0) return res.json({ session: null, participation: null });
+
+  const session = sessionResult.rows[0];
+  const partResult = await query(
+    'SELECT * FROM session_participants WHERE session_id = $1 AND user_id = $2',
+    [session.id, user.id]
+  );
+  res.json({ session, participation: partResult.rows[0] || null });
+});
+
+// ── User: Save score ──────────────────────────────────────────────
+app.post('/api/sessions/:id/score', async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const { persona_id, score, completed_items, evaluation } = req.body;
+  if (!persona_id || score === undefined || !completed_items) {
+    return res.status(400).json({ error: 'persona_id, score and completed_items required' });
+  }
+
+  const sessionResult = await query('SELECT * FROM sessions WHERE id = $1', [req.params.id]);
+  if (sessionResult.rows.length === 0) return res.status(404).json({ error: 'Sesión no encontrada' });
+  const session = sessionResult.rows[0];
+  if (session.status !== 'active' && session.status !== 'finished') {
+    return res.status(400).json({ error: 'Sesión no aceptando puntuaciones' });
+  }
+
+  try {
+    const result = await query(
+      `INSERT INTO session_participants (session_id, user_id, persona_id, score, completed_items, evaluation)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (session_id, user_id)
+       DO UPDATE SET score = $4, completed_items = $5,
+         evaluation = COALESCE($6, session_participants.evaluation),
+         persona_id = $3,
+         finished_at = CASE WHEN $6 IS NOT NULL THEN NOW() ELSE session_participants.finished_at END
+       RETURNING *`,
+      [req.params.id, user.id, persona_id, score, completed_items, evaluation || null]
+    );
+    res.json({ participant: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Serve built frontend ────────────────────────────────────────
 const distPath = join(__dirname, 'dist');
 if (existsSync(distPath)) {
