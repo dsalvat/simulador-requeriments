@@ -9,7 +9,10 @@ export function useSession(user) {
   const [activeSession, setActiveSession] = useState(null);
   const [participation, setParticipation] = useState(null);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [sessionStopped, setSessionStopped] = useState(false);
   const timerRef = useRef(null);
+  const pollRef = useRef(null);
+  const prevStatusRef = useRef(null);
 
   const checkActiveSession = useCallback(async () => {
     if (!user) return;
@@ -17,13 +20,30 @@ export function useSession(user) {
       const res = await fetch('/api/sessions/active', { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
+        const prevStatus = prevStatusRef.current;
+        const newStatus = data.session?.status || null;
+
+        // Detect admin stop: was active, now finished or gone
+        if (prevStatus === 'active' && (newStatus === 'finished' || !data.session)) {
+          setSessionStopped(true);
+        }
+        prevStatusRef.current = newStatus;
+
         setActiveSession(data.session);
         setParticipation(data.participation);
       }
     } catch (e) { console.error('Session check error:', e); }
   }, [user]);
 
-  useEffect(() => { checkActiveSession(); }, [checkActiveSession]);
+  // Initial check + polling every 10s
+  useEffect(() => {
+    checkActiveSession();
+    pollRef.current = setInterval(checkActiveSession, 10000);
+    return () => clearInterval(pollRef.current);
+  }, [checkActiveSession]);
+
+  // Allow resetting the stopped flag after consuming it
+  const clearSessionStopped = useCallback(() => setSessionStopped(false), []);
 
   // Countdown timer
   useEffect(() => {
@@ -72,6 +92,8 @@ export function useSession(user) {
     participation,
     timeLeft,
     sessionActive: !!(activeSession && activeSession.status === 'active' && timeLeft > 0),
+    sessionStopped,
+    clearSessionStopped,
     saveScore,
     checkActiveSession,
   };

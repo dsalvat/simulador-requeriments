@@ -264,6 +264,19 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     if (session.timeLeft > 0) autoEvalTriggered.current = false;
   }, [session.timeLeft, screen, triggerEval]);
 
+  // ── Auto-eval when admin stops the session ────────────────
+  useEffect(() => {
+    if (session.sessionStopped) {
+      session.clearSessionStopped();
+      if (screen === "chat" && !autoEvalTriggered.current) {
+        autoEvalTriggered.current = true;
+        triggerEval();
+      } else if (screen === "select") {
+        // Force re-render to hide the banner (polling already updated activeSession)
+      }
+    }
+  }, [session.sessionStopped, screen, triggerEval]);
+
   // ── Progress helpers ──────────────────────────────────────
   const totalItems = CHECKLIST.length;
   const doneItems = completed.size;
