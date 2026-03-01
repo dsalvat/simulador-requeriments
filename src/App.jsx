@@ -109,13 +109,15 @@ PUNTOS FUERTES:
       const match = reply.match(/COMPLETADOS:\s*([A-Z0-9,\s]+)/i);
       let nc = new Set();
       if (match) match[1].split(",").forEach(id => { const tr = id.trim(); if (CHECKLIST.find(c => c.id === tr)) nc.add(tr); });
-      setCompleted(nc);
-      setEvalScore(nc.size);
+      // Merge eval results with items found during background classification
+      const merged = new Set([...completedRef.current, ...nc]);
+      setCompleted(merged);
+      setEvalScore(merged.size);
       const evalText = reply.replace(/COMPLETADOS:.*\n*/i, "").trim();
       setEvaluation(evalText);
       // Save final score to session DB
       if (session.activeSession) {
-        session.saveScore(session.activeSession.id, currentPersona.id, nc.size, Array.from(nc), evalText);
+        session.saveScore(session.activeSession.id, currentPersona.id, merged.size, Array.from(merged), evalText);
       }
       setScreen("eval");
       setLoading(false);
