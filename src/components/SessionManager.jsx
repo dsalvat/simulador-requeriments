@@ -72,16 +72,18 @@ export default function SessionManager() {
   };
 
   const startSession = async (id) => {
-    await fetch(`/api/admin/sessions/${id}/start`, {
+    await fetch(`/api/admin/sessions/${id}`, {
       method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify({ action: 'start' }),
     });
     fetchSessions();
     viewRanking(id);
   };
 
   const stopSession = async (id) => {
-    await fetch(`/api/admin/sessions/${id}/stop`, {
+    await fetch(`/api/admin/sessions/${id}`, {
       method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify({ action: 'stop' }),
     });
     fetchRanking(id);
     fetchSessions();
@@ -89,7 +91,7 @@ export default function SessionManager() {
 
   const fetchRanking = useCallback(async (id) => {
     try {
-      const res = await fetch(`/api/admin/sessions/${id}/ranking`, { headers: getAuthHeaders() });
+      const res = await fetch(`/api/admin/sessions/${id}`, { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
         // Track position changes

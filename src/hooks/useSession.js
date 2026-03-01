@@ -48,7 +48,7 @@ export function useSession(user) {
 
   const saveScore = useCallback(async (sessionId, personaId, score, completedItems, evaluation) => {
     try {
-      const res = await fetch(`/api/sessions/${sessionId}/score`, {
+      const res = await fetch(`/api/sessions/${sessionId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

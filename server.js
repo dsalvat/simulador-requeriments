@@ -289,34 +289,8 @@ app.post('/api/admin/sessions', async (req, res) => {
   }
 });
 
-// ── Admin: Start session ──────────────────────────────────────────
-app.post('/api/admin/sessions/:id/start', async (req, res) => {
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
-  const result = await query(
-    `UPDATE sessions SET status = 'active', started_at = NOW()
-     WHERE id = $1 AND status = 'created' RETURNING *`,
-    [req.params.id]
-  );
-  if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no disponible para iniciar' });
-  res.json({ session: result.rows[0] });
-});
-
-// ── Admin: Stop session ───────────────────────────────────────────
-app.post('/api/admin/sessions/:id/stop', async (req, res) => {
-  const admin = await requireAdmin(req, res);
-  if (!admin) return;
-  const result = await query(
-    `UPDATE sessions SET status = 'finished', finished_at = NOW()
-     WHERE id = $1 AND status = 'active' RETURNING *`,
-    [req.params.id]
-  );
-  if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no activa' });
-  res.json({ session: result.rows[0] });
-});
-
-// ── Admin: Session ranking ────────────────────────────────────────
-app.get('/api/admin/sessions/:id/ranking', async (req, res) => {
+// ── Admin: Session actions (GET=ranking, POST=start/stop) ─────────
+app.get('/api/admin/sessions/:id', async (req, res) => {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   const sessionResult = await query('SELECT * FROM sessions WHERE id = $1', [req.params.id]);
@@ -331,6 +305,34 @@ app.get('/api/admin/sessions/:id/ranking', async (req, res) => {
     [req.params.id]
   );
   res.json({ session: sessionResult.rows[0], ranking: ranking.rows });
+});
+
+app.post('/api/admin/sessions/:id', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const { action } = req.body || {};
+
+  if (action === 'start') {
+    const result = await query(
+      `UPDATE sessions SET status = 'active', started_at = NOW()
+       WHERE id = $1 AND status = 'created' RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no disponible para iniciar' });
+    return res.json({ session: result.rows[0] });
+  }
+
+  if (action === 'stop') {
+    const result = await query(
+      `UPDATE sessions SET status = 'finished', finished_at = NOW()
+       WHERE id = $1 AND status = 'active' RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'Sesión no activa' });
+    return res.json({ session: result.rows[0] });
+  }
+
+  res.status(400).json({ error: 'action required: start or stop' });
 });
 
 // ── User: Get active session ──────────────────────────────────────
@@ -351,7 +353,7 @@ app.get('/api/sessions/active', async (req, res) => {
 });
 
 // ── User: Save score ──────────────────────────────────────────────
-app.post('/api/sessions/:id/score', async (req, res) => {
+app.post('/api/sessions/:id', async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;
   const { persona_id, score, completed_items, evaluation } = req.body;

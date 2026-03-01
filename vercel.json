@@ -2,9 +2,7 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/admin/users/:id", "destination": "/api/admin/users/[id]" },
-    { "source": "/api/admin/sessions/:id/start", "destination": "/api/admin/sessions/[id]/start" },
-    { "source": "/api/admin/sessions/:id/stop", "destination": "/api/admin/sessions/[id]/stop" },
-    { "source": "/api/admin/sessions/:id/ranking", "destination": "/api/admin/sessions/[id]/ranking" },
-    { "source": "/api/sessions/:id/score", "destination": "/api/sessions/[id]/score" }
+    { "source": "/api/admin/sessions/:id", "destination": "/api/admin/sessions/[id]" },
+    { "source": "/api/sessions/:id", "destination": "/api/sessions/[id]" }
   ]
 }
