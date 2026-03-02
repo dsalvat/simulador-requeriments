@@ -61,6 +61,9 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
   const [inviteRole, setInviteRole] = useState("user");
   const [inviteError, setInviteError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editUser, setEditUser] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editRole, setEditRole] = useState("user");
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch('/api/admin/users', { headers: getAuthHeaders() });
@@ -86,6 +89,22 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
       method: 'DELETE', headers: getAuthHeaders(),
     });
     setConfirmDelete(null);
+    fetchUsers();
+  };
+
+  const openEdit = (u) => {
+    setEditUser(u);
+    setEditName(u.name || "");
+    setEditRole(u.role || "user");
+  };
+
+  const handleEditSave = async () => {
+    if (!editUser) return;
+    await fetch(`/api/admin/users/${editUser.id}`, {
+      method: 'PATCH', headers: getAuthHeaders(),
+      body: JSON.stringify({ name: editName || null, role: editRole }),
+    });
+    setEditUser(null);
     fetchUsers();
   };
 
@@ -218,7 +237,7 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
           }}>
             {/* Header row */}
             <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 80px",
+              display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 120px",
               padding: "12px 20px", borderBottom: "1px solid var(--border)",
               fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase",
               letterSpacing: "0.05em",
@@ -230,7 +249,7 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
             {/* User rows */}
             {users.map(u => (
               <div key={u.id} style={{
-                display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 80px",
+                display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 120px",
                 padding: "14px 20px", borderBottom: "1px solid var(--border)",
                 alignItems: "center", transition: "background 0.15s",
               }}
@@ -266,7 +285,13 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                   {timeAgo(u.last_login)}
                 </span>
                 {/* Actions */}
-                <div>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button onClick={() => openEdit(u)} style={{
+                    background: "none", border: "none", color: "var(--accent)",
+                    cursor: "pointer", fontSize: 12, fontWeight: 500, padding: "4px 8px",
+                  }}>
+                    Editar
+                  </button>
                   {u.id !== currentUser.id && (
                     <button onClick={() => setConfirmDelete(u)} style={{
                       background: "none", border: "none", color: "var(--danger)",
@@ -362,6 +387,84 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                 cursor: inviteEmail.trim() ? "pointer" : "default", fontSize: 14, fontWeight: 500,
               }}>
                 Invitar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit user modal */}
+      {editUser && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setEditUser(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: "var(--bg-surface)", borderRadius: 16, padding: "32px",
+            maxWidth: 420, width: "90%", boxShadow: "var(--shadow-xl)",
+            animation: "scaleIn 0.2s ease-out",
+          }}>
+            <h3 style={{
+              fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400,
+              color: "var(--text-primary)", margin: "0 0 8px",
+            }}>
+              Editar usuario
+            </h3>
+            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 20 }}>
+              {editUser.email}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                  Nombre
+                </label>
+                <input value={editName} onChange={e => setEditName(e.target.value)}
+                  placeholder="Nombre completo" style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: "1px solid var(--border)", fontSize: 14, outline: "none",
+                    boxSizing: "border-box", background: "var(--bg-primary)",
+                    color: "var(--text-primary)",
+                  }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                  Rol
+                </label>
+                <select value={editRole} onChange={e => setEditRole(e.target.value)}
+                  disabled={editUser.id === currentUser.id}
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: "1px solid var(--border)", fontSize: 14, outline: "none",
+                    background: "var(--bg-surface)", boxSizing: "border-box",
+                    color: "var(--text-primary)",
+                    opacity: editUser.id === currentUser.id ? 0.5 : 1,
+                  }}>
+                  <option value="user">Usuario</option>
+                  <option value="admin">Admin</option>
+                </select>
+                {editUser.id === currentUser.id && (
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                    No puedes cambiar tu propio rol
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginTop: 24, justifyContent: "flex-end" }}>
+              <button onClick={() => setEditUser(null)} style={{
+                background: "transparent", border: "1px solid var(--border)",
+                color: "var(--text-secondary)", padding: "10px 20px", borderRadius: 10,
+                cursor: "pointer", fontSize: 14,
+              }}>
+                Cancelar
+              </button>
+              <button onClick={handleEditSave} style={{
+                background: "var(--accent)", color: "#fff", border: "none",
+                padding: "10px 20px", borderRadius: 10, cursor: "pointer",
+                fontSize: 14, fontWeight: 500,
+              }}>
+                Guardar
               </button>
             </div>
           </div>
