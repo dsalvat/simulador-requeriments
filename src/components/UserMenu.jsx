@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-export default function UserMenu({ user, onAdmin, onLogout }) {
+export default function UserMenu({ user, onAdmin, onDashboard, onLogout }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -69,6 +69,25 @@ export default function UserMenu({ user, onAdmin, onLogout }) {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
               Panel de administraci&oacute;n
+            </button>
+          )}
+          {user.role === "admin" && onDashboard && (
+            <button onClick={() => { setOpen(false); onDashboard(); }} style={{
+              display: "flex", alignItems: "center", gap: 10, width: "100%",
+              background: "transparent", border: "none", padding: "10px 14px",
+              borderRadius: 8, cursor: "pointer", fontSize: 13,
+              color: "var(--text-primary)", textAlign: "left",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--bg-secondary)"}
+            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              Monitoratge
             </button>
           )}
           <button onClick={() => { setOpen(false); onLogout(); }} style={{

@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { verifyGoogleToken, signToken, requireAuth, requireAdmin } from './lib/auth.js';
@@ -32,6 +32,68 @@ if (!API_KEY) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// ── Monitoring: in-memory tracking ──────────────────────────────
+const activeClients = new Map();  // clientId → { connectedAt, lastHeartbeat, screen, personaId, personaName, mode, userName }
+const sseClients = new Set();     // Set<Response> for SSE
+
+const USAGE_FILE = join(__dirname, 'data', 'usage.json');
+const MAX_USAGE_EVENTS = 10000;
+
+function loadUsage() {
+  try { return JSON.parse(readFileSync(USAGE_FILE, 'utf8')); }
+  catch { return []; }
+}
+
+function appendUsage(event) {
+  try {
+    mkdirSync(join(__dirname, 'data'), { recursive: true });
+    const events = loadUsage();
+    events.push({ timestamp: new Date().toISOString(), ...event });
+    if (events.length > MAX_USAGE_EVENTS) events.splice(0, events.length - MAX_USAGE_EVENTS);
+    writeFileSync(USAGE_FILE, JSON.stringify(events, null, 2));
+  } catch (err) { console.error('Usage write error:', err.message); }
+}
+
+function computeSummary(events, from) {
+  const filtered = from ? events.filter(e => e.timestamp >= from) : events;
+  const summary = {};
+  for (const e of filtered) {
+    if (!summary[e.service]) summary[e.service] = { calls: 0, cost: 0, details: {} };
+    const s = summary[e.service];
+    s.calls++;
+    s.cost += e.cost || 0;
+    if (e.service === 'anthropic') {
+      s.details.inputTokens = (s.details.inputTokens || 0) + (e.inputTokens || 0);
+      s.details.outputTokens = (s.details.outputTokens || 0) + (e.outputTokens || 0);
+    } else if (e.service === 'elevenlabs') {
+      s.details.characters = (s.details.characters || 0) + (e.characters || 0);
+      s.details.audioDurationSec = (s.details.audioDurationSec || 0) + (e.audioDurationSec || 0);
+    } else if (e.service === 'deepgram') {
+      s.details.audioSeconds = (s.details.audioSeconds || 0) + (e.audioSeconds || 0);
+    } else if (e.service === 'simli') {
+      s.details.durationSeconds = (s.details.durationSeconds || 0) + (e.durationSeconds || 0);
+    }
+  }
+  return summary;
+}
+
+function broadcastSSE(event, data) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const client of sseClients) {
+    try { client.write(msg); } catch { sseClients.delete(client); }
+  }
+}
+
+// Cleanup stale clients every 10s
+setInterval(() => {
+  const now = Date.now();
+  let changed = false;
+  for (const [id, info] of activeClients) {
+    if (now - info.lastHeartbeat > 30000) { activeClients.delete(id); changed = true; }
+  }
+  if (changed) broadcastSSE('clients', [...activeClients.entries()].map(([id, info]) => ({ id: id.slice(0, 5), ...info })));
+}, 10000);
 
 // ── Services status (public) ─────────────────────────────────────
 app.get('/api/services-status', (req, res) => {
@@ -163,6 +225,20 @@ app.post('/api/messages', async (req, res) => {
       body: JSON.stringify(req.body)
     });
     const data = await response.json();
+
+    // ── Intercept Anthropic usage ──
+    const clientId = req.headers['x-client-id'] || 'unknown';
+    if (data.usage) {
+      const inp = data.usage.input_tokens || 0;
+      const out = data.usage.output_tokens || 0;
+      appendUsage({
+        service: 'anthropic', clientId, userName: user.name || user.email,
+        inputTokens: inp, outputTokens: out,
+        model: req.body.model || 'unknown',
+        cost: (inp / 1e6) * 3.0 + (out / 1e6) * 15.0
+      });
+    }
+
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -199,9 +275,22 @@ app.post('/api/tts', async (req, res) => {
     }
     res.setHeader('Content-Type', 'application/octet-stream');
     const reader = response.body.getReader();
+    const clientId = req.headers['x-client-id'] || 'unknown';
+    let totalBytes = 0;
     const pump = async () => {
       const { done, value } = await reader.read();
-      if (done) { res.end(); return; }
+      if (done) {
+        // ── Intercept ElevenLabs usage ──
+        const audioDurationSec = totalBytes / 32000; // PCM16 @ 16kHz = 32000 bytes/sec
+        appendUsage({
+          service: 'elevenlabs', clientId, userName: user.name || user.email,
+          characters: text.length, audioDurationSec,
+          cost: (text.length / 1000) * 0.15
+        });
+        res.end();
+        return;
+      }
+      totalBytes += value.length;
       res.write(Buffer.from(value));
       return pump();
     };
@@ -384,6 +473,80 @@ app.post('/api/sessions/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── Monitoring: Heartbeat (auth required) ───────────────────────
+app.post('/api/heartbeat', async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const clientId = req.headers['x-client-id'];
+  if (!clientId) return res.status(400).json({ error: 'X-Client-Id required' });
+
+  const { screen, personaId, personaName, mode: clientMode } = req.body;
+  activeClients.set(clientId, {
+    connectedAt: activeClients.get(clientId)?.connectedAt || Date.now(),
+    lastHeartbeat: Date.now(),
+    screen: screen || 'unknown',
+    personaId: personaId || null,
+    personaName: personaName || null,
+    mode: clientMode || null,
+    userName: user.name || user.email
+  });
+  broadcastSSE('clients', [...activeClients.entries()].map(([id, info]) => ({ id: id.slice(0, 5), ...info })));
+  res.json({ ok: true });
+});
+
+// ── Monitoring: SSE stream (admin required, token via query) ────
+app.get('/api/dashboard/stream', async (req, res) => {
+  // EventSource doesn't support headers, so accept token via query param
+  if (req.query.token) {
+    req.headers.authorization = `Bearer ${req.query.token}`;
+  }
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send current state immediately
+  const clients = [...activeClients.entries()].map(([id, info]) => ({ id: id.slice(0, 5), ...info }));
+  res.write(`event: clients\ndata: ${JSON.stringify(clients)}\n\n`);
+
+  sseClients.add(res);
+  req.on('close', () => sseClients.delete(res));
+});
+
+// ── Monitoring: Client usage report (auth required) ─────────────
+app.post('/api/usage/report', async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const clientId = req.headers['x-client-id'] || 'unknown';
+  const { service, ...metrics } = req.body;
+  if (!service) return res.status(400).json({ error: 'service required' });
+
+  appendUsage({ service, clientId, userName: user.name || user.email, ...metrics });
+  res.json({ ok: true });
+});
+
+// ── Monitoring: Usage data (admin required) ─────────────────────
+app.get('/api/dashboard/usage', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const events = loadUsage();
+  const from = req.query.from || null;
+  const summary = computeSummary(events, from);
+  const recent = events.slice(-50).reverse();
+  res.json({ summary, recent, total: events.length });
+});
+
+// ── Monitoring: Active clients (admin required, non-SSE) ────────
+app.get('/api/dashboard/clients', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const clients = [...activeClients.entries()].map(([id, info]) => ({ id: id.slice(0, 5), ...info }));
+  res.json({ clients });
 });
 
 // ── Serve built frontend ────────────────────────────────────────

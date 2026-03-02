@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { apiFetch } from "../api";
 
 // Buffer size: 6400 bytes = 200ms of PCM16 @ 16kHz mono
 const BUFFER_SIZE = 6400;
@@ -15,10 +16,9 @@ export function useElevenLabs(simliClientRef) {
     abortControllerRef.current = abortController;
 
     try {
-      const authToken = localStorage.getItem('auth_token');
-      const response = await fetch('/api/tts', {
+      const response = await apiFetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voiceId }),
         signal: abortController.signal
       });

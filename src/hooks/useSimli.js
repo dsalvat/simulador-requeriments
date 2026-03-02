@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { SimliClient } from "simli-client";
+import { apiFetch, reportUsage } from "../api";
 
 export function useSimli() {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const clientRef = useRef(null);
   const [isReady, setIsReady] = useState(false);
+  const sessionStartRef = useRef(null);
 
   const initialize = useCallback(async (faceId) => {
     // Clean up any existing session
@@ -28,10 +30,9 @@ export function useSimli() {
     await waitForRefs();
 
     // 1. Get session token from server
-    const authToken = localStorage.getItem('auth_token');
-    const res = await fetch('/api/simli-token', {
+    const res = await apiFetch('/api/simli-token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ faceId })
     });
     if (!res.ok) throw new Error(`Simli token failed: ${res.status}`);
@@ -53,10 +54,18 @@ export function useSimli() {
     // 3. Start the WebRTC connection
     await client.start();
     clientRef.current = client;
+    sessionStartRef.current = Date.now();
     setIsReady(true);
   }, []);
 
   const cleanup = useCallback(() => {
+    // Report Simli usage
+    if (sessionStartRef.current) {
+      const durationSeconds = (Date.now() - sessionStartRef.current) / 1000;
+      reportUsage('simli', { durationSeconds, cost: (durationSeconds / 60) * 0.01 });
+      sessionStartRef.current = null;
+    }
+
     if (clientRef.current) {
       clientRef.current.close();
       clientRef.current = null;

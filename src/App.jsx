@@ -8,8 +8,10 @@ import AchievementToast from "./components/AchievementToast";
 import LoginScreen from "./components/LoginScreen";
 import AdminPanel from "./components/AdminPanel";
 import UserMenu from "./components/UserMenu";
+import Dashboard from "./components/Dashboard";
 import { useAuth } from "./hooks/useAuth";
 import { useSession } from "./hooks/useSession";
+import { useHeartbeat } from "./hooks/useHeartbeat";
 import { useSpeechRecognition } from "./hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "./hooks/useSpeechSynthesis";
 import { useDeepgram } from "./hooks/useDeepgram";
@@ -46,6 +48,9 @@ export default function App() {
       setMode(s.saasReady ? 'saas' : 'fallback');
     });
   }, []);
+
+  // ── Heartbeat for monitoring ─────────────────────────────────
+  useHeartbeat(screen, persona, mode);
 
   // ── Hooks: fallback ────────────────────────────────────────
   const fallbackSTT = useSpeechRecognition();
@@ -333,6 +338,11 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
     );
   }
 
+  // ========== DASHBOARD SCREEN ==========
+  if (screen === "dashboard") {
+    return <Dashboard onBack={() => setScreen("select")} />;
+  }
+
   // ========== SELECT SCREEN ==========
   if (screen === "select") {
     return (
@@ -353,6 +363,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
             <UserMenu
               user={authUser}
               onAdmin={() => setScreen("admin")}
+              onDashboard={() => setScreen("dashboard")}
               onLogout={logout}
             />
           </div>

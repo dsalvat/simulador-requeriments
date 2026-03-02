@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { apiFetch, reportUsage } from "../api";
 
 export function useDeepgram() {
   const [isListening, setIsListening] = useState(false);
@@ -9,10 +10,12 @@ export function useDeepgram() {
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const finalTranscriptRef = useRef("");
+  const totalBytesSentRef = useRef(0);
 
   const startListening = useCallback(async () => {
     setTranscript("");
     finalTranscriptRef.current = "";
+    totalBytesSentRef.current = 0;
 
     try {
       // 1. Request microphone FIRST (needs user gesture, do before async WS)
@@ -22,10 +25,8 @@ export function useDeepgram() {
       mediaStreamRef.current = stream;
 
       // 2. Get token from server
-      const authToken = localStorage.getItem('auth_token');
-      const tokenRes = await fetch('/api/deepgram-token', {
+      const tokenRes = await apiFetch('/api/deepgram-token', {
         method: 'POST',
-        headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
       });
       if (!tokenRes.ok) throw new Error('Failed to get Deepgram token');
       const tokenData = await tokenRes.json();
@@ -56,6 +57,7 @@ export function useDeepgram() {
               int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
             }
             ws.send(int16.buffer);
+            totalBytesSentRef.current += int16.byteLength;
           }
         };
         source.connect(processor);
@@ -96,6 +98,13 @@ export function useDeepgram() {
   }, []);
 
   const stopListening = useCallback(() => {
+    // Report Deepgram usage
+    if (totalBytesSentRef.current > 0) {
+      const audioSeconds = totalBytesSentRef.current / 32000; // PCM16 @ 16kHz
+      reportUsage('deepgram', { audioSeconds, cost: (audioSeconds / 60) * 0.0043 });
+      totalBytesSentRef.current = 0;
+    }
+
     // Close WebSocket
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "CloseStream" }));

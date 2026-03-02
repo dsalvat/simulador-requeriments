@@ -161,3 +161,10 @@ export const CHECKLIST = [
 
 export const PHASE_NAMES = { 1: "Outcome", 2: "Output", 3: "MVP", 4: "Validación", 5: "Release" };
 export const PHASE_COLORS = { 1: "#2E75B6", 2: "#8E44AD", 3: "#27AE60", 4: "#E67E22", 5: "#C0392B" };
+
+export const COST_RATES = {
+  anthropic: { inputPerMToken: 3.0, outputPerMToken: 15.0, unit: 'tokens' },
+  elevenlabs: { perKChars: 0.15, unit: 'car\u00e0cters' },
+  deepgram: { perMinute: 0.0043, unit: 'minuts' },
+  simli: { perMinute: 0.01, unit: 'minuts' }
+};
