@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CHECKLIST } from "../data";
+import { CHECKLIST, PHASE_NAMES, PHASE_COLORS } from "../data";
 
 const CHECKLIST_TOTAL = CHECKLIST.length;
 
@@ -34,6 +34,31 @@ const STATUS_STYLES = {
   finished: { bg: "#F3E5F5", color: "#7B1FA2", label: "Finalizada" },
 };
 
+function parseEvaluation(text) {
+  if (!text) return null;
+  const evalMatch = text.match(/EVALUACI[OÓ]N:\s*([\s\S]*?)(?=PUNTOS FUERTES:|$)/i);
+  const strengthsMatch = text.match(/PUNTOS FUERTES:\s*([\s\S]*?)(?=[AÁ]REAS DE MEJORA:|$)/i);
+  const improvementMatch = text.match(/[AÁ]REAS DE MEJORA:\s*([\s\S]*?)$/i);
+  return {
+    evaluation: evalMatch ? evalMatch[1].trim() : text.trim(),
+    strengths: strengthsMatch ? strengthsMatch[1].trim() : "",
+    improvements: improvementMatch ? improvementMatch[1].trim() : "",
+  };
+}
+
+function groupByPhase(completedItems) {
+  const groups = {};
+  if (!completedItems) return groups;
+  for (const itemId of completedItems) {
+    const item = CHECKLIST.find(c => c.id === itemId);
+    if (item) {
+      if (!groups[item.fase]) groups[item.fase] = [];
+      groups[item.fase].push(item);
+    }
+  }
+  return groups;
+}
+
 export default function SessionManager() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +68,7 @@ export default function SessionManager() {
   const [ranking, setRanking] = useState([]);
   const [rankingSession, setRankingSession] = useState(null);
   const [countdown, setCountdown] = useState(null);
+  const [expandedUserId, setExpandedUserId] = useState(null);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
   const prevRankRef = useRef({});
@@ -146,6 +172,7 @@ export default function SessionManager() {
     setViewingId(null);
     setRanking([]);
     setRankingSession(null);
+    setExpandedUserId(null);
     if (pollRef.current) clearInterval(pollRef.current);
     fetchSessions();
   };
@@ -236,74 +263,205 @@ export default function SessionManager() {
               const pct = Math.round((r.score / CHECKLIST_TOTAL) * 100);
               const pctColor = pct >= 70 ? "var(--success)" : pct >= 50 ? "var(--warning)" : "var(--danger)";
               const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "";
+              const isExpanded = expandedUserId === r.user_id;
+              const hasEval = !!r.evaluation;
 
               return (
-                <div key={r.user_id} style={{
-                  display: "grid", gridTemplateColumns: "50px 1fr 120px 100px 80px",
-                  padding: "14px 20px", borderBottom: "1px solid var(--border)",
-                  alignItems: "center",
-                  transition: "all 0.5s ease",
-                  background: i === 0 && r.score > 0 ? "rgba(255,215,0,0.04)" : "transparent",
-                }}>
-                  {/* Position */}
-                  <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
-                    {medal || (i + 1)}
-                  </span>
-                  {/* Name + avatar */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {r.avatar_url ? (
-                      <img src={r.avatar_url} alt="" style={{
-                        width: 34, height: 34, borderRadius: "50%", objectFit: "cover",
-                      }} />
-                    ) : (
-                      <div style={{
-                        width: 34, height: 34, borderRadius: "50%", background: "var(--accent-subtle)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        color: "var(--accent)", fontWeight: 600, fontSize: 14,
-                      }}>
-                        {(r.name || r.email || "?")[0].toUpperCase()}
-                      </div>
-                    )}
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
-                        {r.name || r.email}
-                      </div>
-                      {r.finished_at && (
-                        <div style={{ fontSize: 11, color: "var(--success)" }}>
-                          Completado
+                <div key={r.user_id}>
+                  <div
+                    onClick={() => hasEval && setExpandedUserId(isExpanded ? null : r.user_id)}
+                    style={{
+                      display: "grid", gridTemplateColumns: "50px 1fr 120px 100px 80px 30px",
+                      padding: "14px 20px", borderBottom: isExpanded ? "none" : "1px solid var(--border)",
+                      alignItems: "center",
+                      transition: "all 0.3s ease",
+                      background: isExpanded ? "var(--bg-secondary)" : i === 0 && r.score > 0 ? "rgba(255,215,0,0.04)" : "transparent",
+                      cursor: hasEval ? "pointer" : "default",
+                    }}
+                    onMouseEnter={e => { if (hasEval) e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                    onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = i === 0 && r.score > 0 ? "rgba(255,215,0,0.04)" : "transparent"; }}
+                  >
+                    {/* Position */}
+                    <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>
+                      {medal || (i + 1)}
+                    </span>
+                    {/* Name + avatar */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {r.avatar_url ? (
+                        <img src={r.avatar_url} alt="" style={{
+                          width: 34, height: 34, borderRadius: "50%", objectFit: "cover",
+                        }} />
+                      ) : (
+                        <div style={{
+                          width: 34, height: 34, borderRadius: "50%", background: "var(--accent-subtle)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: "var(--accent)", fontWeight: 600, fontSize: 14,
+                        }}>
+                          {(r.name || r.email || "?")[0].toUpperCase()}
                         </div>
                       )}
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>
+                          {r.name || r.email}
+                        </div>
+                        {r.finished_at && (
+                          <div style={{ fontSize: 11, color: "var(--success)" }}>
+                            Completado
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  {/* Persona */}
-                  <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                    {r.persona_id}
-                  </span>
-                  {/* Score */}
-                  <span style={{
-                    fontSize: 18, fontWeight: 700, color: pctColor,
-                    fontVariantNumeric: "tabular-nums",
-                  }}>
-                    {r.score}/{CHECKLIST_TOTAL}
-                  </span>
-                  {/* Progress bar */}
-                  <div style={{ width: "100%" }}>
-                    <div style={{
-                      height: 8, borderRadius: 4, background: "var(--border)",
-                      overflow: "hidden",
+                    {/* Persona */}
+                    <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      {r.persona_id}
+                    </span>
+                    {/* Score */}
+                    <span style={{
+                      fontSize: 18, fontWeight: 700, color: pctColor,
+                      fontVariantNumeric: "tabular-nums",
                     }}>
+                      {r.score}/{CHECKLIST_TOTAL}
+                    </span>
+                    {/* Progress bar */}
+                    <div style={{ width: "100%" }}>
                       <div style={{
-                        height: "100%", borderRadius: 4, background: pctColor,
-                        width: `${pct}%`, transition: "width 0.8s ease",
-                      }} />
+                        height: 8, borderRadius: 4, background: "var(--border)",
+                        overflow: "hidden",
+                      }}>
+                        <div style={{
+                          height: "100%", borderRadius: 4, background: pctColor,
+                          width: `${pct}%`, transition: "width 0.8s ease",
+                        }} />
+                      </div>
+                      <div style={{
+                        fontSize: 11, color: "var(--text-muted)", marginTop: 2,
+                        textAlign: "center",
+                      }}>
+                        {pct}%
+                      </div>
                     </div>
-                    <div style={{
-                      fontSize: 11, color: "var(--text-muted)", marginTop: 2,
+                    {/* Chevron */}
+                    <span style={{
+                      fontSize: 14, color: hasEval ? "var(--text-muted)" : "transparent",
+                      transition: "transform 0.2s",
+                      transform: isExpanded ? "rotate(90deg)" : "none",
                       textAlign: "center",
                     }}>
-                      {pct}%
-                    </div>
+                      ▸
+                    </span>
                   </div>
+
+                  {/* Expanded evaluation panel */}
+                  {isExpanded && r.evaluation && (() => {
+                    const parsed = parseEvaluation(r.evaluation);
+                    const phases = groupByPhase(r.completed_items);
+                    return (
+                      <div style={{
+                        padding: "0 20px 20px", borderBottom: "1px solid var(--border)",
+                        background: "var(--bg-secondary)",
+                      }}>
+                        <div style={{
+                          display: "grid", gridTemplateColumns: "1fr 280px", gap: 20,
+                        }}>
+                          {/* Left: evaluation text */}
+                          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                            {parsed.evaluation && (
+                              <div>
+                                <h4 style={{
+                                  fontSize: 13, fontWeight: 600, color: "var(--text-muted)",
+                                  textTransform: "uppercase", letterSpacing: "0.05em",
+                                  margin: "0 0 8px",
+                                }}>
+                                  Evaluaci&oacute;n
+                                </h4>
+                                <p style={{
+                                  fontSize: 14, lineHeight: 1.6, color: "var(--text-primary)",
+                                  margin: 0, whiteSpace: "pre-line",
+                                }}>
+                                  {parsed.evaluation}
+                                </p>
+                              </div>
+                            )}
+                            {parsed.strengths && (
+                              <div>
+                                <h4 style={{
+                                  fontSize: 13, fontWeight: 600, color: "var(--success)",
+                                  margin: "0 0 8px",
+                                }}>
+                                  Puntos Fuertes
+                                </h4>
+                                <p style={{
+                                  fontSize: 13, lineHeight: 1.6, color: "var(--text-secondary)",
+                                  margin: 0, whiteSpace: "pre-line",
+                                }}>
+                                  {parsed.strengths}
+                                </p>
+                              </div>
+                            )}
+                            {parsed.improvements && (
+                              <div>
+                                <h4 style={{
+                                  fontSize: 13, fontWeight: 600, color: "var(--warning)",
+                                  margin: "0 0 8px",
+                                }}>
+                                  &Aacute;reas de Mejora
+                                </h4>
+                                <p style={{
+                                  fontSize: 13, lineHeight: 1.6, color: "var(--text-secondary)",
+                                  margin: 0, whiteSpace: "pre-line",
+                                }}>
+                                  {parsed.improvements}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right: checklist by phase */}
+                          <div style={{
+                            background: "var(--bg-surface)", borderRadius: 12,
+                            padding: 16, fontSize: 13,
+                          }}>
+                            <h4 style={{
+                              fontSize: 13, fontWeight: 600, color: "var(--text-muted)",
+                              textTransform: "uppercase", letterSpacing: "0.05em",
+                              margin: "0 0 12px",
+                            }}>
+                              Checklist ({r.score}/{CHECKLIST_TOTAL})
+                            </h4>
+                            {Object.entries(PHASE_NAMES).map(([fase, name]) => {
+                              const phaseItems = CHECKLIST.filter(c => c.fase === parseInt(fase));
+                              const completedInPhase = phases[fase] || [];
+                              return (
+                                <div key={fase} style={{ marginBottom: 10 }}>
+                                  <div style={{
+                                    fontSize: 11, fontWeight: 600, color: PHASE_COLORS[fase],
+                                    marginBottom: 4,
+                                  }}>
+                                    F{fase}: {name} ({completedInPhase.length}/{phaseItems.length})
+                                  </div>
+                                  {phaseItems.map(item => {
+                                    const done = completedInPhase.some(c => c.id === item.id);
+                                    return (
+                                      <div key={item.id} style={{
+                                        display: "flex", alignItems: "center", gap: 6,
+                                        padding: "2px 0", color: done ? "var(--text-primary)" : "var(--text-muted)",
+                                        fontSize: 12,
+                                      }}>
+                                        <span style={{ fontSize: 11 }}>{done ? "✓" : "○"}</span>
+                                        <span style={{ textDecoration: done ? "none" : "none", opacity: done ? 1 : 0.5 }}>
+                                          {item.label}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

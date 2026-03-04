@@ -40,6 +40,20 @@ const sseClients = new Set();     // Set<Response> for SSE
 const USAGE_FILE = join(__dirname, 'data', 'usage.json');
 const MAX_USAGE_EVENTS = 10000;
 
+// Ensure usage tracking file exists at startup
+try {
+  mkdirSync(join(__dirname, 'data'), { recursive: true });
+  if (!existsSync(USAGE_FILE)) {
+    writeFileSync(USAGE_FILE, '[]');
+    console.log('  ✓ Created usage file:', USAGE_FILE);
+  } else {
+    const initial = JSON.parse(readFileSync(USAGE_FILE, 'utf8'));
+    console.log(`  ✓ Usage file loaded: ${initial.length} events`);
+  }
+} catch (err) {
+  console.error('  ⚠ Cannot init usage file:', err.message);
+}
+
 function loadUsage() {
   try { return JSON.parse(readFileSync(USAGE_FILE, 'utf8')); }
   catch { return []; }
@@ -52,6 +66,7 @@ function appendUsage(event) {
     events.push({ timestamp: new Date().toISOString(), ...event });
     if (events.length > MAX_USAGE_EVENTS) events.splice(0, events.length - MAX_USAGE_EVENTS);
     writeFileSync(USAGE_FILE, JSON.stringify(events, null, 2));
+    console.log(`[Usage] ${event.service} · ${event.userName} · ${(event.cost || 0).toFixed(4)}€`);
   } catch (err) { console.error('Usage write error:', err.message); }
 }
 
