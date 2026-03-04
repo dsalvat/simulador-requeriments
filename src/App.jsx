@@ -1,5 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { PERSONAS, CHECKLIST, PHASE_NAMES, PHASE_COLORS } from "./data";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+// PERSONAS, CHECKLIST still exported from data.js for other consumers
+// App.jsx uses getFormation() for dynamic formation loading
+import { getFormation } from "./formations/index.js";
 import { callClaude, checkServicesStatus } from "./api";
 import Avatar from "./components/Avatar";
 import SimliAvatar from "./components/SimliAvatar";
@@ -41,6 +43,13 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
   const completedRef = useRef(new Set());
   const chatRef = useRef(null);
+
+  // ── Dynamic formation based on active session ──────────────
+  const formation = useMemo(() => {
+    return getFormation(session.activeSession?.formation_slug || 'requeriments');
+  }, [session.activeSession?.formation_slug]);
+  const personas = formation.personas;
+  const checklist = formation.checklist;
 
   // ── Service mode detection ─────────────────────────────────
   useEffect(() => {
@@ -91,7 +100,7 @@ export default function App() {
     if (isEval) {
       const evalSystem = `Eres evaluador experto en toma de requerimientos. Evalúa la transcripción contra la checklist:
 
-${CHECKLIST.map(c => `- ${c.id} (Fase ${c.fase}): ${c.label}`).join("\n")}
+${checklist.map(c => `- ${c.id} (Fase ${c.fase}): ${c.label}`).join("\n")}
 
 Un elemento se considera completado SOLO si la información se ha obtenido claramente. Responde en castellano:
 
@@ -113,7 +122,7 @@ PUNTOS FUERTES:
       const reply = await callClaude([{ role: "user", content: `Transcripción:\n\n${t}` }], evalSystem);
       const match = reply.match(/COMPLETADOS:\s*([A-Z0-9,\s]+)/i);
       let nc = new Set();
-      if (match) match[1].split(",").forEach(id => { const tr = id.trim(); if (CHECKLIST.find(c => c.id === tr)) nc.add(tr); });
+      if (match) match[1].split(",").forEach(id => { const tr = id.trim(); if (checklist.find(c => c.id === tr)) nc.add(tr); });
       // Merge eval results with items found during background classification
       const merged = new Set([...completedRef.current, ...nc]);
       setCompleted(merged);
@@ -153,7 +162,7 @@ PUNTOS FUERTES:
     ).join("\n");
 
     const classifySystem = `Analiza esta transcripción de toma de requerimientos. Indica SOLO los elementos que se han abordado claramente en la conversación:
-${CHECKLIST.map(c => `- ${c.id}: ${c.label}`).join("\n")}
+${checklist.map(c => `- ${c.id}: ${c.label}`).join("\n")}
 
 Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si ninguno se ha completado, responde: NINGUNO`;
 
@@ -163,7 +172,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
       const newCompleted = new Set(prevCompleted);
       const newItems = [];
       ids.forEach(id => {
-        const item = CHECKLIST.find(c => c.id === id);
+        const item = checklist.find(c => c.id === id);
         if (item && !prevCompleted.has(id)) {
           newCompleted.add(id);
           newItems.push(item);
@@ -187,7 +196,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
         }
       }
     });
-  }, [messages, voiceMode, isSaas, fallbackTTS, elevenLabsTTS]);
+  }, [messages, voiceMode, isSaas, fallbackTTS, elevenLabsTTS, checklist]);
 
   const dismissToast = useCallback((toastId) => {
     setToasts(prev => prev.filter(t => t.id !== toastId));
@@ -288,7 +297,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
   }, [session.sessionStopped, screen, triggerEval]);
 
   // ── Progress helpers ──────────────────────────────────────
-  const totalItems = CHECKLIST.length;
+  const totalItems = checklist.length;
   const doneItems = completed.size;
   const progressPct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
@@ -384,9 +393,9 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
               padding: "6px 16px", borderRadius: 20, background: "var(--bg-secondary)",
               fontSize: 12, color: "var(--text-muted)",
             }}>
-              <span>{PERSONAS.length} personajes</span>
+              <span>{personas.length} personajes</span>
               <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-muted)" }} />
-              <span>{CHECKLIST.length} checkpoints</span>
+              <span>{checklist.length} checkpoints</span>
               <span style={{ width: 3, height: 3, borderRadius: "50%", background: "var(--text-muted)" }} />
               <span>5 fases</span>
             </div>
@@ -438,7 +447,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
                 Se te asignar&aacute; un personaje aleatorio. &iexcl;Consigue el m&aacute;ximo de puntos!
               </p>
               <button onClick={() => {
-                const available = PERSONAS.slice(0, 5);
+                const available = personas.slice(0, 5);
                 const random = available[Math.floor(Math.random() * available.length)];
                 startSession(random);
               }} style={{
@@ -456,7 +465,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
 
           {/* Persona cards */}
           <div className="persona-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 16 }}>
-            {PERSONAS.map((p, idx) => (
+            {personas.map((p, idx) => (
               <button key={p.id} onClick={() => startSession(p)} style={{
                 background: "var(--bg-surface)", border: "none", borderRadius: 16,
                 padding: "0", cursor: "pointer", textAlign: "center",
@@ -531,7 +540,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
 
   // ========== EVAL SCREEN ==========
   if (screen === "eval") {
-    const pct = Math.round((evalScore / CHECKLIST.length) * 100);
+    const pct = Math.round((evalScore / checklist.length) * 100);
     const scoreColor = pct >= 70 ? "var(--success)" : pct >= 50 ? "var(--warning)" : "var(--danger)";
 
     // Parse evaluation into sections
@@ -646,7 +655,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
                     {pct}%
                   </text>
                   <text x="100" y="118" textAnchor="middle" style={{ fontSize: 13, fill: "var(--text-muted)" }}>
-                    {evalScore}/{CHECKLIST.length} puntos
+                    {evalScore}/{checklist.length} puntos
                   </text>
                 </svg>
               </div>
@@ -656,7 +665,7 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
                 background: "var(--bg-surface)", borderRadius: 12, padding: 16,
                 border: "1px solid var(--border)", animation: "fadeSlideUp 0.5s ease-out 0.4s both"
               }}>
-                <MiniChecklist items={CHECKLIST} completed={completed} mode="detailed" />
+                <MiniChecklist items={checklist} completed={completed} mode="detailed" phaseNames={formation.phaseNames} phaseColors={formation.phaseColors} />
               </div>
 
               {/* Buttons */}
@@ -824,14 +833,14 @@ Responde ÚNICAMENTE con los IDs separados por comas (ejemplo: P01,P02,P05). Si 
               background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", fontSize: 16
             }}>×</button>
           </div>
-          <MiniChecklist items={CHECKLIST} completed={completed} mode="compact" />
+          <MiniChecklist items={checklist} completed={completed} mode="compact" phaseNames={formation.phaseNames} phaseColors={formation.phaseColors} />
         </div>
       )}
 
       {/* Chat area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
         {/* Achievement toasts */}
-        <AchievementToast toasts={toasts} onDismiss={dismissToast} />
+        <AchievementToast toasts={toasts} onDismiss={dismissToast} phaseNames={formation.phaseNames} phaseColors={formation.phaseColors} />
 
         {/* Avatar area — Simli video rendered ONCE here (always mounted so refs stay stable) */}
         {isSaas ? (

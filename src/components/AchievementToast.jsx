@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { PHASE_NAMES, PHASE_COLORS } from "../data";
+import { PHASE_NAMES as DEFAULT_PHASE_NAMES, PHASE_COLORS as DEFAULT_PHASE_COLORS } from "../data";
 
 const CONFETTI_COLORS = ["#C45D3E", "#3A8A5C", "#2E75B6", "#E67E22", "#8E44AD", "#C0392B"];
 
-function SingleToast({ toast, index, onDismiss }) {
+function SingleToast({ toast, index, onDismiss, phaseNames, phaseColors }) {
   const [exiting, setExiting] = useState(false);
+  const PHASE_COLORS = phaseColors || DEFAULT_PHASE_COLORS;
+  const PHASE_NAMES = phaseNames || DEFAULT_PHASE_NAMES;
   const color = PHASE_COLORS[toast.fase] || "#C45D3E";
 
   useEffect(() => {
@@ -93,7 +95,7 @@ function SingleToast({ toast, index, onDismiss }) {
   );
 }
 
-export default function AchievementToast({ toasts, onDismiss }) {
+export default function AchievementToast({ toasts, onDismiss, phaseNames, phaseColors }) {
   if (!toasts.length) return null;
 
   return (
@@ -109,7 +111,7 @@ export default function AchievementToast({ toasts, onDismiss }) {
     }}>
       {toasts.map((toast, i) => (
         <div key={toast.id} style={{ pointerEvents: "auto" }}>
-          <SingleToast toast={toast} index={i} onDismiss={onDismiss} />
+          <SingleToast toast={toast} index={i} onDismiss={onDismiss} phaseNames={phaseNames} phaseColors={phaseColors} />
         </div>
       ))}
     </div>

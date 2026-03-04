@@ -69,6 +69,10 @@ export default function SessionManager() {
   const [rankingSession, setRankingSession] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [expandedUserId, setExpandedUserId] = useState(null);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [selectedFormation, setSelectedFormation] = useState("");
+  const [organizations, setOrganizations] = useState([]);
+  const [formations, setFormations] = useState([]);
   const pollRef = useRef(null);
   const timerRef = useRef(null);
   const prevRankRef = useRef({});
@@ -84,14 +88,29 @@ export default function SessionManager() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
+  const fetchOrgsAndFormations = useCallback(async () => {
+    try {
+      const [orgsRes, formRes] = await Promise.all([
+        fetch('/api/admin/organizations', { headers: getAuthHeaders() }),
+        fetch('/api/formations', { headers: getAuthHeaders() }),
+      ]);
+      if (orgsRes.ok) { const data = await orgsRes.json(); setOrganizations(data.organizations); }
+      if (formRes.ok) { const data = await formRes.json(); setFormations(data.formations); }
+    } catch (e) { console.error(e); }
+  }, []);
+
+  useEffect(() => { fetchSessions(); fetchOrgsAndFormations(); }, [fetchSessions, fetchOrgsAndFormations]);
 
   const createSession = async () => {
     setCreating(true);
     try {
       await fetch('/api/admin/sessions', {
         method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ duration_min: duration }),
+        body: JSON.stringify({
+          duration_min: duration,
+          organization_id: selectedOrgId ? parseInt(selectedOrgId) : null,
+          formation_slug: selectedFormation || null,
+        }),
       });
       fetchSessions();
     } catch (e) { console.error(e); }
@@ -487,6 +506,32 @@ export default function SessionManager() {
           Nueva Sesi&oacute;n
         </h3>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>Empresa:</label>
+          <select value={selectedOrgId} onChange={e => setSelectedOrgId(e.target.value)} style={{
+            padding: "8px 10px", borderRadius: 8,
+            border: "1px solid var(--border)", fontSize: 13,
+          }}>
+            <option value="">Libre (sin empresa)</option>
+            {organizations.filter(o => o.active).map(o => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        </div>
+        {formations.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>Formaci&oacute;n:</label>
+            <select value={selectedFormation} onChange={e => setSelectedFormation(e.target.value)} style={{
+              padding: "8px 10px", borderRadius: 8,
+              border: "1px solid var(--border)", fontSize: 13,
+            }}>
+              <option value="">Por defecto</option>
+              {formations.map(f => (
+                <option key={f.slug} value={f.slug}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <label style={{ fontSize: 13, color: "var(--text-secondary)" }}>Duraci&oacute;n:</label>
           <input type="number" value={duration} onChange={e => setDuration(Math.max(1, parseInt(e.target.value) || 1))}
             min={1} max={120} style={{
@@ -528,13 +573,14 @@ export default function SessionManager() {
         }}>
           {/* Header */}
           <div style={{
-            display: "grid", gridTemplateColumns: "80px 100px 90px 120px 100px 1fr",
+            display: "grid", gridTemplateColumns: "80px 120px 100px 80px 90px 100px 1fr",
             padding: "12px 20px", borderBottom: "1px solid var(--border)",
             fontSize: 11, fontWeight: 600, color: "var(--text-muted)",
             textTransform: "uppercase", letterSpacing: "0.05em",
           }}>
-            <span>Estado</span><span>Duraci&oacute;n</span><span>Jugadores</span>
-            <span>Creada</span><span>Creador</span><span style={{ textAlign: "right" }}>Acciones</span>
+            <span>Estado</span><span>Empresa</span><span>Formaci&oacute;n</span>
+            <span>Duraci&oacute;n</span><span>Jugadores</span>
+            <span>Creada</span><span style={{ textAlign: "right" }}>Acciones</span>
           </div>
 
           {/* Rows */}
@@ -542,7 +588,7 @@ export default function SessionManager() {
             const st = STATUS_STYLES[s.status];
             return (
               <div key={s.id} style={{
-                display: "grid", gridTemplateColumns: "80px 100px 90px 120px 100px 1fr",
+                display: "grid", gridTemplateColumns: "80px 120px 100px 80px 90px 100px 1fr",
                 padding: "14px 20px", borderBottom: "1px solid var(--border)",
                 alignItems: "center",
               }}
@@ -556,6 +602,12 @@ export default function SessionManager() {
                 }}>
                   {st.label}
                 </span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {s.organization_name || "Libre"}
+                </span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+                  {s.formation_slug || "—"}
+                </span>
                 <span style={{ fontSize: 14, color: "var(--text-primary)" }}>
                   {s.duration_min} min
                 </span>
@@ -564,9 +616,6 @@ export default function SessionManager() {
                 </span>
                 <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                   {timeAgo(s.created_at)}
-                </span>
-                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                  {s.created_by_name || "—"}
                 </span>
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                   {s.status === 'created' && (

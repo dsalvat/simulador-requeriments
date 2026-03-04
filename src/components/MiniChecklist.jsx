@@ -1,6 +1,8 @@
-import { PHASE_NAMES, PHASE_COLORS } from "../data";
+import { PHASE_NAMES as DEFAULT_PHASE_NAMES, PHASE_COLORS as DEFAULT_PHASE_COLORS } from "../data";
 
-export default function MiniChecklist({ items, completed, mode = "compact" }) {
+export default function MiniChecklist({ items, completed, mode = "compact", phaseNames, phaseColors }) {
+  const PHASE_NAMES = phaseNames || DEFAULT_PHASE_NAMES;
+  const PHASE_COLORS = phaseColors || DEFAULT_PHASE_COLORS;
   const grouped = {};
   items.forEach(i => { if (!grouped[i.fase]) grouped[i.fase] = []; grouped[i.fase].push(i); });
   const total = items.length;

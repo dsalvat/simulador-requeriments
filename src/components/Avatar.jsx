@@ -2,7 +2,12 @@ export default function Avatar({ persona, state, size = 200 }) {
   const s = persona.skinColor;
   const h = persona.hairColor;
   const c = persona.shirtColor;
-  const isF = persona.id === "perdut" || persona.id === "indecis";
+  // Determine hair style: "long" for female characters, "short" for most males, "receding" for older characters
+  const hairStyle = persona.hairStyle || (
+    persona.id === "indecis" || persona.id === "perdut" ? "long" :
+    persona.id === "savi" ? "receding" : "short"
+  );
+  const hasGlasses = persona.hasGlasses ?? (persona.id === "savi");
 
   return (
     <div style={{ position: "relative", width: size, height: size }}>
@@ -17,13 +22,13 @@ export default function Avatar({ persona, state, size = 200 }) {
         <ellipse cx="100" cy="100" rx="48" ry="52" fill={s}>
           <animate attributeName="cy" values="100;99;100;101;100" dur="3s" repeatCount="indefinite" />
         </ellipse>
-        {isF ? (
+        {hairStyle === "long" ? (
           <>
             <ellipse cx="100" cy="65" rx="50" ry="30" fill={h} />
             <ellipse cx="55" cy="90" rx="12" ry="30" fill={h} />
             <ellipse cx="145" cy="90" rx="12" ry="30" fill={h} />
           </>
-        ) : persona.id === "savi" ? (
+        ) : hairStyle === "receding" ? (
           <>
             <ellipse cx="100" cy="68" rx="48" ry="22" fill={h} />
             <ellipse cx="58" cy="82" rx="10" ry="8" fill={h} />
@@ -87,7 +92,7 @@ export default function Avatar({ persona, state, size = 200 }) {
         ) : (
           <path d="M88 120 Q100 130 112 120" fill="none" stroke="#c0392b" strokeWidth="2.5" strokeLinecap="round" opacity="0.7" />
         )}
-        {persona.id === "savi" && (
+        {hasGlasses && (
           <g fill="none" stroke="#555" strokeWidth="2">
             <circle cx="80" cy="98" r="14" />
             <circle cx="120" cy="98" r="14" />

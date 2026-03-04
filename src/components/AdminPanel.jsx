@@ -64,6 +64,20 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
   const [editUser, setEditUser] = useState(null);
   const [editName, setEditName] = useState("");
   const [editRole, setEditRole] = useState("user");
+  const [editOrgs, setEditOrgs] = useState([]); // [{organization_id, role, name}]
+
+  // Organizations state
+  const [organizations, setOrganizations] = useState([]);
+  const [showOrgModal, setShowOrgModal] = useState(false);
+  const [editOrg, setEditOrg] = useState(null);
+  const [orgName, setOrgName] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState(null); // org being managed (members view)
+  const [orgMembers, setOrgMembers] = useState([]);
+  const [orgFormations, setOrgFormations] = useState([]);
+  const [allFormations, setAllFormations] = useState([]);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [addMemberUserId, setAddMemberUserId] = useState("");
+  const [addMemberRole, setAddMemberRole] = useState("alumne");
 
   const fetchUsers = useCallback(async () => {
     const res = await fetch('/api/admin/users', { headers: getAuthHeaders() });
@@ -74,7 +88,39 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  const fetchOrganizations = useCallback(async () => {
+    const res = await fetch('/api/admin/organizations', { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      setOrganizations(data.organizations);
+    }
+  }, []);
+
+  const fetchFormations = useCallback(async () => {
+    const res = await fetch('/api/formations', { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      setAllFormations(data.formations);
+    }
+  }, []);
+
+  const fetchOrgMembers = useCallback(async (orgId) => {
+    const res = await fetch(`/api/admin/organizations/${orgId}/members`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      setOrgMembers(data.members);
+    }
+  }, []);
+
+  const fetchOrgFormations = useCallback(async (orgId) => {
+    const res = await fetch(`/api/admin/organizations/${orgId}/formations`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      setOrgFormations(data.formations.map(f => f.id));
+    }
+  }, []);
+
+  useEffect(() => { fetchUsers(); fetchOrganizations(); fetchFormations(); }, [fetchUsers, fetchOrganizations, fetchFormations]);
 
   const toggleActive = async (id, active) => {
     await fetch(`/api/admin/users/${id}`, {
@@ -92,10 +138,18 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
     fetchUsers();
   };
 
-  const openEdit = (u) => {
+  const openEdit = async (u) => {
     setEditUser(u);
     setEditName(u.name || "");
     setEditRole(u.role || "user");
+    // Load user's org memberships
+    const res = await fetch(`/api/admin/users/${u.id}/organizations`, { headers: getAuthHeaders() });
+    if (res.ok) {
+      const data = await res.json();
+      setEditOrgs(data.organizations);
+    } else {
+      setEditOrgs([]);
+    }
   };
 
   const handleEditSave = async () => {
@@ -104,8 +158,97 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
       method: 'PATCH', headers: getAuthHeaders(),
       body: JSON.stringify({ name: editName || null, role: editRole }),
     });
+    // Save org memberships
+    await fetch(`/api/admin/users/${editUser.id}/organizations`, {
+      method: 'PUT', headers: getAuthHeaders(),
+      body: JSON.stringify({ organizations: editOrgs }),
+    });
     setEditUser(null);
     fetchUsers();
+  };
+
+  // Organization CRUD
+  const handleSaveOrg = async () => {
+    if (editOrg) {
+      await fetch(`/api/admin/organizations/${editOrg.id}`, {
+        method: 'PATCH', headers: getAuthHeaders(),
+        body: JSON.stringify({ name: orgName }),
+      });
+    } else {
+      await fetch('/api/admin/organizations', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ name: orgName }),
+      });
+    }
+    setShowOrgModal(false);
+    setEditOrg(null);
+    setOrgName("");
+    fetchOrganizations();
+  };
+
+  const toggleOrgActive = async (org) => {
+    await fetch(`/api/admin/organizations/${org.id}`, {
+      method: 'PATCH', headers: getAuthHeaders(),
+      body: JSON.stringify({ active: !org.active }),
+    });
+    fetchOrganizations();
+  };
+
+  const deleteOrg = async (orgId) => {
+    await fetch(`/api/admin/organizations/${orgId}`, {
+      method: 'DELETE', headers: getAuthHeaders(),
+    });
+    if (selectedOrg?.id === orgId) setSelectedOrg(null);
+    fetchOrganizations();
+  };
+
+  const openOrgMembers = async (org) => {
+    setSelectedOrg(org);
+    await fetchOrgMembers(org.id);
+    await fetchOrgFormations(org.id);
+  };
+
+  const addOrgMember = async () => {
+    if (!addMemberUserId || !selectedOrg) return;
+    await fetch(`/api/admin/organizations/${selectedOrg.id}/members`, {
+      method: 'POST', headers: getAuthHeaders(),
+      body: JSON.stringify({ user_id: parseInt(addMemberUserId), role: addMemberRole }),
+    });
+    setShowAddMember(false);
+    setAddMemberUserId("");
+    setAddMemberRole("alumne");
+    fetchOrgMembers(selectedOrg.id);
+    fetchOrganizations();
+  };
+
+  const changeOrgMemberRole = async (userId, role) => {
+    if (!selectedOrg) return;
+    await fetch(`/api/admin/organizations/${selectedOrg.id}/members/${userId}`, {
+      method: 'PATCH', headers: getAuthHeaders(),
+      body: JSON.stringify({ role }),
+    });
+    fetchOrgMembers(selectedOrg.id);
+  };
+
+  const removeOrgMember = async (userId) => {
+    if (!selectedOrg) return;
+    await fetch(`/api/admin/organizations/${selectedOrg.id}/members/${userId}`, {
+      method: 'DELETE', headers: getAuthHeaders(),
+    });
+    fetchOrgMembers(selectedOrg.id);
+    fetchOrganizations();
+  };
+
+  const toggleOrgFormation = async (formationId) => {
+    if (!selectedOrg) return;
+    const newIds = orgFormations.includes(formationId)
+      ? orgFormations.filter(id => id !== formationId)
+      : [...orgFormations, formationId];
+    await fetch(`/api/admin/organizations/${selectedOrg.id}/formations`, {
+      method: 'PUT', headers: getAuthHeaders(),
+      body: JSON.stringify({ formation_ids: newIds }),
+    });
+    setOrgFormations(newIds);
   };
 
   const handleInvite = async () => {
@@ -170,6 +313,7 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
           {[
             { id: "sessions", label: "Sesiones de Juego" },
             { id: "users", label: "Usuarios" },
+            { id: "orgs", label: "Empresas" },
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
               background: "none", border: "none", padding: "12px 24px",
@@ -305,6 +449,211 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
             ))}
           </div>
         )}
+        </>}
+
+        {activeTab === "orgs" && <>
+          {/* Org action bar */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h2 style={{
+              fontFamily: "'DM Serif Display', serif", fontSize: 24,
+              color: "var(--text-primary)", fontWeight: 400, margin: 0,
+            }}>
+              Empresas
+            </h2>
+            <button onClick={() => { setEditOrg(null); setOrgName(""); setShowOrgModal(true); }} style={{
+              background: "var(--accent)", color: "#fff", border: "none",
+              padding: "10px 20px", borderRadius: 10, cursor: "pointer",
+              fontSize: 14, fontWeight: 500,
+            }}>
+              + Nueva empresa
+            </button>
+          </div>
+
+          <div style={{ display: "flex", gap: 24 }}>
+            {/* Org list */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                background: "var(--bg-surface)", borderRadius: 16,
+                boxShadow: "var(--shadow-sm)", overflow: "hidden",
+              }}>
+                {organizations.length === 0 ? (
+                  <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
+                    No hay empresas creadas
+                  </div>
+                ) : organizations.map(org => (
+                  <div key={org.id} onClick={() => openOrgMembers(org)} style={{
+                    padding: "14px 20px", borderBottom: "1px solid var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    cursor: "pointer", transition: "background 0.15s",
+                    background: selectedOrg?.id === org.id ? "var(--accent-subtle)" : "transparent",
+                  }}
+                  onMouseEnter={e => { if (selectedOrg?.id !== org.id) e.currentTarget.style.background = "var(--bg-secondary)"; }}
+                  onMouseLeave={e => { if (selectedOrg?.id !== org.id) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-primary)" }}>{org.name}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        {org.member_count || 0} miembros
+                        {!org.active && <span style={{ color: "var(--danger)", marginLeft: 8 }}>Inactiva</span>}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <button onClick={e => { e.stopPropagation(); setEditOrg(org); setOrgName(org.name); setShowOrgModal(true); }} style={{
+                        background: "none", border: "none", color: "var(--accent)",
+                        cursor: "pointer", fontSize: 12, fontWeight: 500, padding: "4px 8px",
+                      }}>
+                        Editar
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); toggleOrgActive(org); }} style={{
+                        background: "none", border: "none", color: org.active ? "var(--text-muted)" : "var(--success)",
+                        cursor: "pointer", fontSize: 12, fontWeight: 500, padding: "4px 8px",
+                      }}>
+                        {org.active ? "Desactivar" : "Activar"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Org detail panel */}
+            {selectedOrg && (
+              <div style={{ flex: 1.5, minWidth: 0 }}>
+                <div style={{
+                  background: "var(--bg-surface)", borderRadius: 16, padding: 24,
+                  boxShadow: "var(--shadow-sm)",
+                }}>
+                  <h3 style={{
+                    fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400,
+                    color: "var(--text-primary)", margin: "0 0 20px",
+                  }}>
+                    {selectedOrg.name}
+                  </h3>
+
+                  {/* Formations */}
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Formaciones disponibles
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {allFormations.map(f => (
+                        <button key={f.id} onClick={() => toggleOrgFormation(f.id)} style={{
+                          padding: "6px 14px", borderRadius: 8, fontSize: 13, cursor: "pointer",
+                          border: orgFormations.includes(f.id) ? "2px solid var(--accent)" : "1px solid var(--border)",
+                          background: orgFormations.includes(f.id) ? "var(--accent-subtle)" : "transparent",
+                          color: orgFormations.includes(f.id) ? "var(--accent)" : "var(--text-secondary)",
+                          fontWeight: orgFormations.includes(f.id) ? 600 : 400,
+                        }}>
+                          {f.name}
+                        </button>
+                      ))}
+                      {allFormations.length === 0 && (
+                        <span style={{ fontSize: 13, color: "var(--text-muted)" }}>No hay formaciones en la base de datos</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Members */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Miembros ({orgMembers.length})
+                    </div>
+                    <button onClick={() => setShowAddMember(true)} style={{
+                      background: "var(--accent)", color: "#fff", border: "none",
+                      padding: "6px 14px", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 500,
+                    }}>
+                      + A&ntilde;adir
+                    </button>
+                  </div>
+
+                  {orgMembers.length === 0 ? (
+                    <div style={{ padding: 20, textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
+                      Sin miembros
+                    </div>
+                  ) : orgMembers.map(m => (
+                    <div key={m.user_id} style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 0", borderBottom: "1px solid var(--border)",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <Avatar user={m} size={30} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>{m.name || m.email}</div>
+                          <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.email}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <select value={m.role} onChange={e => changeOrgMemberRole(m.user_id, e.target.value)} style={{
+                          padding: "4px 8px", borderRadius: 6, border: "1px solid var(--border)",
+                          fontSize: 12, background: "var(--bg-primary)", color: "var(--text-primary)",
+                        }}>
+                          <option value="admin">Admin</option>
+                          <option value="professor">Professor</option>
+                          <option value="alumne">Alumne</option>
+                        </select>
+                        <button onClick={() => removeOrgMember(m.user_id)} style={{
+                          background: "none", border: "none", color: "var(--danger)",
+                          cursor: "pointer", fontSize: 16, padding: "2px 6px", lineHeight: 1,
+                        }}>
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add member inline */}
+                  {showAddMember && (
+                    <div style={{
+                      marginTop: 12, padding: 16, borderRadius: 10,
+                      background: "var(--bg-primary)", border: "1px solid var(--border)",
+                    }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Usuario</label>
+                          <select value={addMemberUserId} onChange={e => setAddMemberUserId(e.target.value)} style={{
+                            width: "100%", padding: "8px 10px", borderRadius: 8,
+                            border: "1px solid var(--border)", fontSize: 13,
+                            background: "var(--bg-surface)", color: "var(--text-primary)",
+                          }}>
+                            <option value="">Seleccionar...</option>
+                            {users.filter(u => u.active && !orgMembers.find(m => m.user_id === u.id)).map(u => (
+                              <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Rol</label>
+                          <select value={addMemberRole} onChange={e => setAddMemberRole(e.target.value)} style={{
+                            padding: "8px 10px", borderRadius: 8,
+                            border: "1px solid var(--border)", fontSize: 13,
+                            background: "var(--bg-surface)", color: "var(--text-primary)",
+                          }}>
+                            <option value="admin">Admin</option>
+                            <option value="professor">Professor</option>
+                            <option value="alumne">Alumne</option>
+                          </select>
+                        </div>
+                        <button onClick={addOrgMember} disabled={!addMemberUserId} style={{
+                          background: addMemberUserId ? "var(--accent)" : "var(--border)",
+                          color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8,
+                          cursor: addMemberUserId ? "pointer" : "default", fontSize: 13, fontWeight: 500,
+                        }}>
+                          A&ntilde;adir
+                        </button>
+                        <button onClick={() => setShowAddMember(false)} style={{
+                          background: "none", border: "1px solid var(--border)",
+                          color: "var(--text-muted)", padding: "8px 12px", borderRadius: 8,
+                          cursor: "pointer", fontSize: 13,
+                        }}>
+                          &times;
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </>}
       </div>
 
@@ -449,6 +798,61 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                   </div>
                 )}
               </div>
+
+              {/* Organization memberships */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                  Organizaciones
+                </label>
+                {editOrgs.map((eo, i) => (
+                  <div key={i} style={{
+                    display: "flex", gap: 8, alignItems: "center", marginBottom: 6,
+                  }}>
+                    <select value={eo.organization_id} onChange={e => {
+                      const updated = [...editOrgs];
+                      const org = organizations.find(o => o.id === parseInt(e.target.value));
+                      updated[i] = { ...updated[i], organization_id: parseInt(e.target.value), name: org?.name };
+                      setEditOrgs(updated);
+                    }} style={{
+                      flex: 1, padding: "8px 10px", borderRadius: 8,
+                      border: "1px solid var(--border)", fontSize: 13,
+                      background: "var(--bg-primary)", color: "var(--text-primary)",
+                    }}>
+                      {organizations.map(o => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                    <select value={eo.role} onChange={e => {
+                      const updated = [...editOrgs];
+                      updated[i] = { ...updated[i], role: e.target.value };
+                      setEditOrgs(updated);
+                    }} style={{
+                      padding: "8px 10px", borderRadius: 8,
+                      border: "1px solid var(--border)", fontSize: 13,
+                      background: "var(--bg-primary)", color: "var(--text-primary)",
+                    }}>
+                      <option value="admin">Admin</option>
+                      <option value="professor">Professor</option>
+                      <option value="alumne">Alumne</option>
+                    </select>
+                    <button onClick={() => setEditOrgs(editOrgs.filter((_, j) => j !== i))} style={{
+                      background: "none", border: "none", color: "var(--danger)",
+                      cursor: "pointer", fontSize: 16, padding: "2px 6px",
+                    }}>
+                      &times;
+                    </button>
+                  </div>
+                ))}
+                {organizations.length > 0 && (
+                  <button onClick={() => setEditOrgs([...editOrgs, { organization_id: organizations[0].id, role: "alumne", name: organizations[0].name }])} style={{
+                    background: "none", border: "1px dashed var(--border)", color: "var(--accent)",
+                    padding: "6px 12px", borderRadius: 8, cursor: "pointer", fontSize: 12, width: "100%",
+                    marginTop: 4,
+                  }}>
+                    + A&ntilde;adir a organizaci&oacute;n
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: "flex", gap: 12, marginTop: 24, justifyContent: "flex-end" }}>
@@ -465,6 +869,54 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                 fontSize: 14, fontWeight: 500,
               }}>
                 Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Org create/edit modal */}
+      {showOrgModal && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setShowOrgModal(false)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: "var(--bg-surface)", borderRadius: 16, padding: "32px",
+            maxWidth: 420, width: "90%", boxShadow: "var(--shadow-xl)",
+            animation: "scaleIn 0.2s ease-out",
+          }}>
+            <h3 style={{
+              fontFamily: "'DM Serif Display', serif", fontSize: 22, fontWeight: 400,
+              color: "var(--text-primary)", margin: "0 0 20px",
+            }}>
+              {editOrg ? "Editar empresa" : "Nueva empresa"}
+            </h3>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>
+                Nombre
+              </label>
+              <input value={orgName} onChange={e => setOrgName(e.target.value)}
+                placeholder="Nombre de la empresa" autoFocus style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10,
+                  border: "1px solid var(--border)", fontSize: 14, outline: "none",
+                  boxSizing: "border-box", background: "var(--bg-primary)", color: "var(--text-primary)",
+                }} />
+            </div>
+            <div style={{ display: "flex", gap: 12, marginTop: 24, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowOrgModal(false)} style={{
+                background: "transparent", border: "1px solid var(--border)",
+                color: "var(--text-secondary)", padding: "10px 20px", borderRadius: 10,
+                cursor: "pointer", fontSize: 14,
+              }}>
+                Cancelar
+              </button>
+              <button onClick={handleSaveOrg} disabled={!orgName.trim()} style={{
+                background: orgName.trim() ? "var(--accent)" : "var(--border)",
+                color: "#fff", border: "none", padding: "10px 20px", borderRadius: 10,
+                cursor: orgName.trim() ? "pointer" : "default", fontSize: 14, fontWeight: 500,
+              }}>
+                {editOrg ? "Guardar" : "Crear"}
               </button>
             </div>
           </div>

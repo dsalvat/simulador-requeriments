@@ -3,7 +3,7 @@ import cors from 'cors';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { verifyGoogleToken, signToken, requireAuth, requireAdmin } from './lib/auth.js';
+import { verifyGoogleToken, signToken, requireAuth, requireAdmin, checkOrgRole } from './lib/auth.js';
 import { query } from './lib/db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -141,10 +141,20 @@ app.post('/api/auth/google', async (req, res) => {
     );
     user = updated.rows[0];
 
+    // Load organization memberships
+    const orgsResult = await query(
+      `SELECT o.id, o.name, om.role
+       FROM organization_members om
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.user_id = $1 AND o.active = true
+       ORDER BY o.name`,
+      [user.id]
+    );
+
     const appToken = signToken(user);
     res.json({
       token: appToken,
-      user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, role: user.role }
+      user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, role: user.role, organizations: orgsResult.rows }
     });
   } catch (err) {
     console.error('Google auth error:', err);
@@ -157,7 +167,7 @@ app.get('/api/auth/me', async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;
   res.json({
-    user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, role: user.role }
+    user: { id: user.id, email: user.email, name: user.name, avatar_url: user.avatar_url, role: user.role, organizations: user.organizations || [] }
   });
 });
 
@@ -223,6 +233,217 @@ app.delete('/api/admin/users/:id', async (req, res) => {
   const result = await query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
   if (result.rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
   res.json({ deleted: true });
+});
+
+// ── Admin: Organizations CRUD ────────────────────────────────────
+app.get('/api/admin/organizations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `SELECT o.*,
+       (SELECT COUNT(*) FROM organization_members WHERE organization_id = o.id) as member_count,
+       u.name as created_by_name
+     FROM organizations o
+     LEFT JOIN users u ON u.id = o.created_by
+     ORDER BY o.name`
+  );
+  res.json({ organizations: result.rows });
+});
+
+app.post('/api/admin/organizations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'name required' });
+  try {
+    const result = await query(
+      'INSERT INTO organizations (name, created_by) VALUES ($1, $2) RETURNING *',
+      [name, admin.id]
+    );
+    res.json({ organization: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/organizations/:id', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const { name, active } = req.body;
+  const fields = [];
+  const values = [];
+  let idx = 1;
+  if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name); }
+  if (active !== undefined) { fields.push(`active = $${idx++}`); values.push(active); }
+  if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
+  values.push(req.params.id);
+  const result = await query(
+    `UPDATE organizations SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+    values
+  );
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Organización no encontrada' });
+  res.json({ organization: result.rows[0] });
+});
+
+app.delete('/api/admin/organizations/:id', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query('DELETE FROM organizations WHERE id = $1 RETURNING id', [req.params.id]);
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Organización no encontrada' });
+  res.json({ deleted: true });
+});
+
+// ── Admin: Organization members ─────────────────────────────────
+app.get('/api/admin/organizations/:id/members', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `SELECT om.*, u.email, u.name, u.avatar_url, u.active as user_active
+     FROM organization_members om
+     JOIN users u ON u.id = om.user_id
+     WHERE om.organization_id = $1
+     ORDER BY om.role, u.name`,
+    [req.params.id]
+  );
+  res.json({ members: result.rows });
+});
+
+app.post('/api/admin/organizations/:id/members', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const { user_id, role } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  try {
+    const result = await query(
+      'INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, $3) RETURNING *',
+      [req.params.id, user_id, role || 'alumne']
+    );
+    res.json({ member: result.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'El usuario ya es miembro' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/organizations/:orgId/members/:userId', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const { role } = req.body;
+  if (!role) return res.status(400).json({ error: 'role required' });
+  const result = await query(
+    'UPDATE organization_members SET role = $1 WHERE organization_id = $2 AND user_id = $3 RETURNING *',
+    [role, req.params.orgId, req.params.userId]
+  );
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Miembro no encontrado' });
+  res.json({ member: result.rows[0] });
+});
+
+app.delete('/api/admin/organizations/:orgId/members/:userId', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    'DELETE FROM organization_members WHERE organization_id = $1 AND user_id = $2 RETURNING id',
+    [req.params.orgId, req.params.userId]
+  );
+  if (result.rows.length === 0) return res.status(404).json({ error: 'Miembro no encontrado' });
+  res.json({ deleted: true });
+});
+
+// ── Admin: User organizations (bulk update) ─────────────────────
+app.get('/api/admin/users/:id/organizations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `SELECT om.organization_id, om.role, o.name
+     FROM organization_members om
+     JOIN organizations o ON o.id = om.organization_id
+     WHERE om.user_id = $1
+     ORDER BY o.name`,
+    [req.params.id]
+  );
+  res.json({ organizations: result.rows });
+});
+
+app.put('/api/admin/users/:id/organizations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const userId = req.params.id;
+  const { organizations } = req.body; // [{ organization_id, role }]
+  if (!Array.isArray(organizations)) return res.status(400).json({ error: 'organizations array required' });
+
+  try {
+    // Remove all current memberships
+    await query('DELETE FROM organization_members WHERE user_id = $1', [userId]);
+    // Insert new ones
+    for (const org of organizations) {
+      await query(
+        'INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, $3)',
+        [org.organization_id, userId, org.role || 'alumne']
+      );
+    }
+    const result = await query(
+      `SELECT om.organization_id, om.role, o.name
+       FROM organization_members om
+       JOIN organizations o ON o.id = om.organization_id
+       WHERE om.user_id = $1
+       ORDER BY o.name`,
+      [userId]
+    );
+    res.json({ organizations: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin: Formations ───────────────────────────────────────────
+app.get('/api/formations', async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const result = await query('SELECT * FROM formations WHERE active = true ORDER BY name');
+  res.json({ formations: result.rows });
+});
+
+app.get('/api/admin/organizations/:id/formations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const result = await query(
+    `SELECT f.*
+     FROM organization_formations of2
+     JOIN formations f ON f.id = of2.formation_id
+     WHERE of2.organization_id = $1
+     ORDER BY f.name`,
+    [req.params.id]
+  );
+  res.json({ formations: result.rows });
+});
+
+app.put('/api/admin/organizations/:id/formations', async (req, res) => {
+  const admin = await requireAdmin(req, res);
+  if (!admin) return;
+  const orgId = req.params.id;
+  const { formation_ids } = req.body; // [1, 2, 3]
+  if (!Array.isArray(formation_ids)) return res.status(400).json({ error: 'formation_ids array required' });
+
+  try {
+    await query('DELETE FROM organization_formations WHERE organization_id = $1', [orgId]);
+    for (const fId of formation_ids) {
+      await query(
+        'INSERT INTO organization_formations (organization_id, formation_id) VALUES ($1, $2)',
+        [orgId, fId]
+      );
+    }
+    const result = await query(
+      `SELECT f.*
+       FROM organization_formations of2
+       JOIN formations f ON f.id = of2.formation_id
+       WHERE of2.organization_id = $1
+       ORDER BY f.name`,
+      [orgId]
+    );
+    res.json({ formations: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Proxy to Anthropic API (auth required) ───────────────────────
@@ -371,8 +592,11 @@ app.get('/api/admin/sessions', async (req, res) => {
   if (!admin) return;
   const result = await query(
     `SELECT s.*, u.name as created_by_name,
+     o.name as organization_name,
      (SELECT COUNT(*) FROM session_participants WHERE session_id = s.id) as participant_count
-     FROM sessions s JOIN users u ON u.id = s.created_by
+     FROM sessions s
+     JOIN users u ON u.id = s.created_by
+     LEFT JOIN organizations o ON o.id = s.organization_id
      ORDER BY s.created_at DESC LIMIT 50`
   );
   res.json({ sessions: result.rows });
@@ -382,10 +606,12 @@ app.post('/api/admin/sessions', async (req, res) => {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   const duration = parseInt(req.body.duration_min) || 15;
+  const orgId = req.body.organization_id || null;
+  const formationSlug = req.body.formation_slug || null;
   try {
     const result = await query(
-      'INSERT INTO sessions (created_by, duration_min) VALUES ($1, $2) RETURNING *',
-      [admin.id, duration]
+      'INSERT INTO sessions (created_by, duration_min, organization_id, formation_slug) VALUES ($1, $2, $3, $4) RETURNING *',
+      [admin.id, duration, orgId, formationSlug]
     );
     res.json({ session: result.rows[0] });
   } catch (err) {
@@ -443,9 +669,23 @@ app.post('/api/admin/sessions/:id', async (req, res) => {
 app.get('/api/sessions/active', async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;
-  const sessionResult = await query(
-    "SELECT * FROM sessions WHERE status = 'active' ORDER BY started_at DESC LIMIT 1"
-  );
+
+  // Filter sessions by org membership: user sees free sessions (org=NULL) + sessions from their orgs
+  const orgIds = (user.organizations || []).map(o => o.id);
+  let sessionResult;
+  if (orgIds.length > 0) {
+    sessionResult = await query(
+      `SELECT * FROM sessions WHERE status = 'active'
+       AND (organization_id IS NULL OR organization_id = ANY($1))
+       ORDER BY started_at DESC LIMIT 1`,
+      [orgIds]
+    );
+  } else {
+    sessionResult = await query(
+      "SELECT * FROM sessions WHERE status = 'active' AND organization_id IS NULL ORDER BY started_at DESC LIMIT 1"
+    );
+  }
+
   if (sessionResult.rows.length === 0) return res.json({ session: null, participation: null });
 
   const session = sessionResult.rows[0];
