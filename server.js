@@ -176,7 +176,14 @@ app.get('/api/admin/users', async (req, res) => {
   const admin = await requireAdmin(req, res);
   if (!admin) return;
   const result = await query(
-    'SELECT id, email, name, avatar_url, role, active, created_at, last_login FROM users ORDER BY created_at DESC'
+    `SELECT u.id, u.email, u.name, u.avatar_url, u.role, u.active, u.created_at, u.last_login,
+       COALESCE(
+         (SELECT json_agg(json_build_object('org_id', o.id, 'org_name', o.name, 'role', om.role))
+          FROM organization_members om
+          JOIN organizations o ON o.id = om.organization_id
+          WHERE om.user_id = u.id), '[]'
+       ) as organizations
+     FROM users u ORDER BY u.created_at DESC`
   );
   res.json({ users: result.rows });
 });

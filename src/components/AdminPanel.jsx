@@ -381,19 +381,23 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
           }}>
             {/* Header row */}
             <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 120px",
+              display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr 80px 70px 90px 100px",
               padding: "12px 20px", borderBottom: "1px solid var(--border)",
               fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase",
               letterSpacing: "0.05em",
             }}>
-              <span>Nombre</span><span>Email</span><span>Rol</span>
+              <span>Nombre</span><span>Email</span><span>Organizaciones</span><span>Rol</span>
               <span>Estado</span><span>&Uacute;ltimo acceso</span><span></span>
             </div>
 
             {/* User rows */}
-            {users.map(u => (
+            {users.map(u => {
+              const orgs = Array.isArray(u.organizations) ? u.organizations : [];
+              const roleLabel = { alumne: "A", professor: "P", admin: "D" };
+              const roleColor = { alumne: "#6366f1", professor: "#059669", admin: "#dc2626" };
+              return (
               <div key={u.id} style={{
-                display: "grid", gridTemplateColumns: "1fr 1.5fr 80px 70px 100px 120px",
+                display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr 80px 70px 90px 100px",
                 padding: "14px 20px", borderBottom: "1px solid var(--border)",
                 alignItems: "center", transition: "background 0.15s",
               }}
@@ -408,7 +412,27 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                   </span>
                 </div>
                 {/* Email */}
-                <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{u.email}</span>
+                <span style={{ fontSize: 13, color: "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.email}</span>
+                {/* Organizations */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {orgs.map((m, i) => (
+                    <span key={i} style={{
+                      display: "inline-flex", alignItems: "center", gap: 3,
+                      padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 500,
+                      background: "var(--bg-secondary)", color: "var(--text-secondary)",
+                      maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {m.org_name}
+                      <span style={{
+                        display: "inline-flex", alignItems: "center", justifyContent: "center",
+                        width: 16, height: 16, borderRadius: 4, fontSize: 9, fontWeight: 700,
+                        background: roleColor[m.role] || "#888", color: "#fff", flexShrink: 0,
+                      }}>
+                        {roleLabel[m.role] || "?"}
+                      </span>
+                    </span>
+                  ))}
+                </div>
                 {/* Role badge */}
                 <span style={{
                   display: "inline-block", padding: "3px 10px", borderRadius: 6, fontSize: 11,
@@ -446,7 +470,8 @@ export default function AdminPanel({ currentUser, onBack, onLogout }) {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         </>}
