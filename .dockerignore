@@ -1,6 +1,8 @@
 node_modules
 dist
 .env
+.env.docker
 .git
-*.md
+.github
 .claude
+*.md
