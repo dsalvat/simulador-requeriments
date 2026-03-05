@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PractiQ — AI-Powered Soft Skills Training</title>
+<meta name="description" content="Domina las soft skills que importan. Practica con avatares IA en simulaciones realistas. Feedback personalizado e inmediato.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --primary-light: #3B82F6;
+  --primary-bg: #EFF6FF;
+  --dark: #0F172A;
+  --text: #334155;
+  --text-light: #64748B;
+  --white: #FFFFFF;
+  --gray-50: #F8FAFC;
+  --gray-100: #F1F5F9;
+  --gray-200: #E2E8F0;
+  --gray-300: #CBD5E1;
+  --gray-400: #94A3B8;
+  --red: #EF4444;
+  --red-bg: #FEF2F2;
+  --purple: #8B5CF6;
+  --purple-bg: #F5F3FF;
+  --green: #22C55E;
+  --green-bg: #F0FDF4;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.08);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.1);
+  --transition: 200ms ease;
+}
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', -apple-system, sans-serif; color: var(--text); background: var(--white); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+h1, h2, h3 { font-family: 'DM Serif Display', Georgia, serif; color: var(--dark); font-weight: 400; }
+a { text-decoration: none; color: inherit; }
+img { max-width: 100%; display: block; }
+button { cursor: pointer; border: none; font-family: inherit; }
+ul { list-style: none; }
+.container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+.section { padding: 96px 0; }
+.fade-up { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.fade-up.visible { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) { .fade-up { opacity: 1; transform: none; transition: none; } }
+
+/* ── Buttons ───────────────────────────── */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: var(--radius-xs); font-weight: 600; font-size: 15px; transition: all var(--transition); }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 16px rgba(37,99,235,0.3); }
+.btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--gray-200); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-ghost { background: transparent; color: var(--text-light); font-weight: 500; padding: 8px 0; }
+.btn-ghost svg { width: 16px; height: 16px; }
+.btn-ghost:hover { color: var(--primary); }
+.btn-lg { padding: 16px 32px; font-size: 16px; }
+
+/* ── Navbar ─────────────────────────────── */
+.navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 50; padding: 14px 0; background: rgba(255,255,255,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid transparent; transition: all 0.3s ease; }
+.navbar.scrolled { border-bottom-color: var(--gray-200); }
+.navbar .container { display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 8px; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; color: var(--dark); }
+.logo-icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.logo-icon svg { width: 18px; height: 18px; color: white; }
+.nav-links { display: flex; align-items: center; gap: 32px; }
+.nav-links a { font-size: 14px; font-weight: 500; color: var(--text-light); transition: color var(--transition); }
+.nav-links a:hover { color: var(--dark); }
+.nav-cta { display: flex; align-items: center; gap: 12px; }
+.nav-cta .btn { padding: 10px 20px; font-size: 14px; }
+.hamburger { display: none; background: none; padding: 8px; }
+.hamburger svg { width: 24px; height: 24px; color: var(--dark); }
+.mobile-menu { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--white); z-index: 100; padding: 24px; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
+.mobile-menu.open { display: flex; }
+.mobile-menu a { font-size: 18px; font-weight: 600; color: var(--dark); }
+.mobile-close { position: absolute; top: 20px; right: 24px; background: none; }
+.mobile-close svg { width: 28px; height: 28px; }
+
+/* ── Hero ───────────────────────────────── */
+.hero { padding: 140px 0 80px; background: var(--white); }
+.hero .container { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.hero h1 { font-size: 52px; line-height: 1.1; margin-bottom: 20px; letter-spacing: -0.01em; }
+.hero h1 em { font-style: italic; }
+.hero p { font-size: 17px; color: var(--text-light); line-height: 1.7; margin-bottom: 32px; max-width: 480px; }
+.hero-buttons { display: flex; gap: 16px; align-items: center; }
+.hero-visual { position: relative; border-radius: var(--radius); overflow: hidden; aspect-ratio: 4/3; background: var(--gray-100); }
+.hero-visual img { width: 100%; height: 100%; object-fit: cover; }
+.hero-overlay { position: absolute; bottom: 16px; left: 16px; right: 16px; padding: 14px 18px; background: rgba(15,23,42,0.85); backdrop-filter: blur(8px); border-radius: var(--radius-xs); display: flex; align-items: center; gap: 12px; }
+.hero-overlay-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s ease infinite; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.hero-overlay span { color: white; font-size: 13px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+.hero-wave { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.hero-wave span { width: 3px; border-radius: 3px; background: var(--green); animation: wave 1s ease-in-out infinite; }
+.hero-wave span:nth-child(1) { height: 6px; animation-delay: 0s; }
+.hero-wave span:nth-child(2) { height: 14px; animation-delay: 0.1s; }
+.hero-wave span:nth-child(3) { height: 10px; animation-delay: 0.2s; }
+.hero-wave span:nth-child(4) { height: 18px; animation-delay: 0.3s; }
+.hero-wave span:nth-child(5) { height: 8px; animation-delay: 0.4s; }
+.hero-wave span:nth-child(6) { height: 14px; animation-delay: 0.5s; }
+@keyframes wave { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.3); } }
+
+/* ── Trust ──────────────────────────────── */
+.trust { padding: 48px 0; border-bottom: 1px solid var(--gray-100); }
+.trust p { text-align: center; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gray-400); margin-bottom: 28px; }
+.trust-logos { display: flex; align-items: center; justify-content: center; gap: 40px; flex-wrap: wrap; }
+.trust-logo { width: 44px; height: 44px; border-radius: 10px; background: var(--gray-100); }
+
+/* ── Section headers ────────────────────── */
+.section-label { font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); margin-bottom: 12px; }
+.section-title { font-size: 40px; line-height: 1.15; margin-bottom: 16px; }
+.section-subtitle { font-size: 17px; color: var(--text-light); line-height: 1.7; max-width: 560px; }
+.section-header-center { text-align: center; margin-bottom: 56px; }
+.section-header-center .section-subtitle { margin: 0 auto; }
+
+/* ── Problem ────────────────────────────── */
+.problem { background: var(--white); }
+.problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+.problem-card { padding: 32px; border-radius: var(--radius); border: 1px solid var(--gray-200); background: var(--white); transition: all var(--transition); }
+.problem-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.problem-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.problem-icon svg { width: 22px; height: 22px; }
+.icon-blue { background: var(--primary-bg); }
+.icon-blue svg { color: var(--primary); }
+.icon-red { background: var(--red-bg); }
+.icon-red svg { color: var(--red); }
+.icon-purple { background: var(--purple-bg); }
+.icon-purple svg { color: var(--purple); }
+.problem-card h3 { font-size: 20px; margin-bottom: 10px; }
+.problem-card p { font-size: 15px; color: var(--text-light); line-height: 1.65; }
+
+/* ── How it Works ───────────────────────── */
+.how { background: var(--gray-50); }
+.how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; text-align: center; }
+.step-number { width: 56px; height: 56px; border-radius: 50%; background: var(--primary-bg); color: var(--primary); display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; font-size: 20px; font-weight: 700; margin: 0 auto 20px; border: 2px solid var(--primary); }
+.how-step h3 { font-size: 22px; margin-bottom: 10px; }
+.how-step p { font-size: 15px; color: var(--text-light); line-height: 1.65; max-width: 280px; margin: 0 auto; }
+
+/* ── Formations ─────────────────────────── */
+.formations { background: var(--white); }
+.formations-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
+.formations-top .section-subtitle { margin-bottom: 0; }
+.view-all { font-family: 'Inter', sans-serif; }
+.formations-scroll { display: flex; gap: 24px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+.formations-scroll::-webkit-scrollbar { height: 0; }
+.formation-card { flex: 0 0 300px; border-radius: var(--radius); overflow: hidden; position: relative; scroll-snap-align: start; background: var(--gray-100); transition: all var(--transition); cursor: pointer; }
+.formation-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+.formation-img { height: 200px; position: relative; overflow: hidden; }
+.formation-img img { width: 100%; height: 100%; object-fit: cover; }
+.formation-img::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 40%, rgba(15,23,42,0.7) 100%); }
+.formation-badge { position: absolute; top: 12px; left: 12px; padding: 4px 12px; border-radius: 50px; font-size: 12px; font-weight: 600; z-index: 1; }
+.badge-available { background: var(--primary); color: white; }
+.badge-soon { background: rgba(255,255,255,0.9); color: var(--text-light); backdrop-filter: blur(4px); }
+.formation-body { padding: 20px; }
+.formation-card h3 { font-size: 18px; margin-bottom: 6px; }
+.formation-card p { font-size: 14px; color: var(--text-light); line-height: 1.6; margin-bottom: 14px; }
+.formation-btn { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; color: var(--primary); display: inline-flex; align-items: center; gap: 4px; }
+.formation-btn:hover { gap: 8px; }
+.formation-btn svg { width: 14px; height: 14px; transition: all var(--transition); }
+
+/* ── Features ───────────────────────────── */
+.features { background: var(--gray-50); }
+.features-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
+.features-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.feature-icon { width: 44px; height: 44px; border-radius: 10px; background: var(--primary-bg); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.feature-icon svg { width: 20px; height: 20px; color: var(--primary); }
+.feature-card h3 { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+.feature-card p { font-size: 14px; color: var(--text-light); line-height: 1.6; }
+.features-right h2 { font-size: 36px; line-height: 1.2; margin-bottom: 16px; }
+.features-right > p { font-size: 16px; color: var(--text-light); line-height: 1.7; margin-bottom: 32px; }
+.testimonial { padding: 28px; border-radius: var(--radius); background: var(--white); border: 1px solid var(--gray-200); }
+.testimonial blockquote { font-size: 15px; font-style: italic; color: var(--text); line-height: 1.7; margin-bottom: 16px; position: relative; padding-left: 20px; border-left: 3px solid var(--primary); }
+.testimonial-author { display: flex; align-items: center; gap: 12px; }
+.testimonial-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--gray-200); }
+.testimonial-name { font-size: 14px; font-weight: 600; color: var(--dark); }
+.testimonial-role { font-size: 13px; color: var(--text-light); }
+
+/* ── Stats ──────────────────────────────── */
+.stats { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 64px 0; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; text-align: center; }
+.stat-number { font-family: 'DM Serif Display', serif; font-size: 44px; color: white; margin-bottom: 6px; }
+.stat-label { font-size: 14px; color: rgba(255,255,255,0.7); }
+
+/* ── Pricing ────────────────────────────── */
+.pricing { background: var(--white); }
+.pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; align-items: start; }
+.price-card { padding: 32px 24px; border-radius: var(--radius); border: 1px solid var(--gray-200); background: var(--white); transition: all var(--transition); position: relative; }
+.price-card:hover { box-shadow: var(--shadow-md); }
+.price-card.popular { border: 2px solid var(--primary); }
+.popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); padding: 4px 14px; border-radius: 50px; background: var(--primary); color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; }
+.price-card h3 { font-family: 'Inter', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-light); margin-bottom: 8px; }
+.price { font-family: 'DM Serif Display', serif; font-size: 40px; color: var(--dark); margin-bottom: 4px; }
+.price span { font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 400; color: var(--text-light); }
+.price-desc { font-size: 14px; color: var(--text-light); margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid var(--gray-200); }
+.price-card ul { margin-bottom: 24px; }
+.price-card li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--text); padding: 5px 0; }
+.price-card li svg { width: 18px; height: 18px; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
+.price-card .btn { width: 100%; justify-content: center; }
+.enterprise-sub { font-size: 13px; color: var(--text-light); margin-top: 16px; line-height: 1.6; padding: 14px; border-radius: var(--radius-xs); background: var(--gray-50); }
+.enterprise-sub strong { color: var(--dark); }
+
+/* ── CTA ────────────────────────────────── */
+.final-cta { background: var(--gray-50); padding: 96px 0; text-align: center; }
+.final-cta h2 { font-size: 40px; margin-bottom: 12px; }
+.final-cta p { font-size: 16px; color: var(--text-light); margin-bottom: 32px; }
+.cta-form { display: flex; gap: 12px; justify-content: center; max-width: 440px; margin: 0 auto 16px; }
+.cta-input { flex: 1; padding: 14px 18px; border-radius: var(--radius-xs); border: 1px solid var(--gray-200); background: var(--white); font-family: inherit; font-size: 15px; outline: none; transition: border-color var(--transition); }
+.cta-input:focus { border-color: var(--primary); }
+.cta-note { font-size: 13px; color: var(--text-light); }
+.cta-note a { color: var(--primary); font-weight: 600; }
+.cta-note a:hover { text-decoration: underline; }
+
+/* ── Footer ─────────────────────────────── */
+.footer { background: var(--dark); color: rgba(255,255,255,0.5); padding: 56px 0 28px; }
+.footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 48px; margin-bottom: 40px; }
+.footer-brand .logo { color: white; margin-bottom: 12px; display: inline-flex; }
+.footer-brand .logo-icon { background: var(--primary); }
+.footer-brand p { font-size: 14px; line-height: 1.7; max-width: 280px; }
+.footer h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
+.footer a { font-size: 14px; display: block; padding: 4px 0; transition: color var(--transition); }
+.footer a:hover { color: rgba(255,255,255,0.9); }
+.footer-bottom { padding-top: 28px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.footer-social { display: flex; gap: 16px; }
+.footer-social a { display: flex; }
+.footer-social svg { width: 18px; height: 18px; opacity: 0.4; transition: opacity var(--transition); }
+.footer-social a:hover svg { opacity: 1; }
+
+/* ── Responsive ─────────────────────────── */
+@media (max-width: 1024px) {
+  .hero h1 { font-size: 42px; }
+  .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  .features-layout { grid-template-columns: 1fr; gap: 48px; }
+}
+@media (max-width: 768px) {
+  .section { padding: 72px 0; }
+  .nav-links, .nav-cta { display: none; }
+  .hamburger { display: block; }
+  .hero { padding: 110px 0 64px; }
+  .hero .container { grid-template-columns: 1fr; gap: 32px; }
+  .hero h1 { font-size: 36px; }
+  .section-title { font-size: 32px; }
+  .problem-grid, .how-steps { grid-template-columns: 1fr; gap: 20px; }
+  .formations-top { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .formation-card { flex: 0 0 260px; }
+  .features-grid { grid-template-columns: 1fr; gap: 24px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
+  .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+  .footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+}
+@media (max-width: 480px) {
+  .hero h1 { font-size: 30px; }
+  .hero-buttons { flex-direction: column; align-items: flex-start; }
+  .pricing-grid { grid-template-columns: 1fr; }
+  .stat-number { font-size: 32px; }
+  .cta-form { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar" id="navbar">
+  <div class="container">
+    <a href="#" class="logo">
+      <div class="logo-icon">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </div>
+      PractiQ
+    </a>
+    <div class="nav-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#formaciones">Formaciones</a>
+      <a href="#precios">Precios</a>
+      <a href="#empresas">Empresas</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#" class="btn btn-outline" style="padding:10px 20px;font-size:14px">Iniciar sesion</a>
+      <a href="#cta" class="btn btn-primary" style="padding:10px 20px;font-size:14px">Empieza gratis</a>
+    </div>
+    <button class="hamburger" onclick="document.getElementById('mobile').classList.add('open')" aria-label="Abrir menu">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobile">
+  <button class="mobile-close" onclick="document.getElementById('mobile').classList.remove('open')" aria-label="Cerrar menu">
+    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+  </button>
+  <a href="#como-funciona" onclick="document.getElementById('mobile').classList.remove('open')">Como funciona</a>
+  <a href="#formaciones" onclick="document.getElementById('mobile').classList.remove('open')">Formaciones</a>
+  <a href="#precios" onclick="document.getElementById('mobile').classList.remove('open')">Precios</a>
+  <a href="#empresas" onclick="document.getElementById('mobile').classList.remove('open')">Empresas</a>
+  <a href="#cta" class="btn btn-primary btn-lg" onclick="document.getElementById('mobile').classList.remove('open')">Empieza gratis</a>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div>
+      <h1>Domina las soft skills <em>que importan</em></h1>
+      <p>Las habilidades blandas no se aprenden leyendo, se aprenden practicando. Utiliza nuestra IA para realizar simulaciones reales y recibir feedback inmediato.</p>
+      <div class="hero-buttons">
+        <a href="#cta" class="btn btn-primary btn-lg">
+          Empieza gratis ahora
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#como-funciona" class="btn btn-ghost">
+          <svg fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="10,8 16,12 10,16" fill="currentColor"/></svg>
+          Ver demo
+        </a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=600&h=450&fit=crop&crop=face" alt="Profesional en simulacion" loading="eager">
+      <div class="hero-overlay">
+        <div class="hero-overlay-dot"></div>
+        <span>Simulacion activa</span>
+        <div class="hero-wave">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Trust -->
+<section class="trust">
+  <div class="container">
+    <p>Empresas que confian en nosotros</p>
+    <div class="trust-logos">
+      <div class="trust-logo"></div>
+      <div class="trust-logo"></div>
+      <div class="trust-logo"></div>
+      <div class="trust-logo"></div>
+      <div class="trust-logo"></div>
+      <div class="trust-logo"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Problem -->
+<section class="section problem">
+  <div class="container">
+    <h2 class="section-title fade-up">La formacion tradicional no funciona</h2>
+    <p class="section-subtitle fade-up">El conocimiento pasivo es ineficiente para el desarrollo de competencias interpersonales.</p>
+    <div class="problem-grid">
+      <div class="problem-card fade-up">
+        <div class="problem-icon icon-blue">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <h3>La teoria se olvida</h3>
+        <p>Sin aplicacion practica inmediata, el cerebro descarta la informacion teorica en menos de 48 horas.</p>
+      </div>
+      <div class="problem-card fade-up">
+        <div class="problem-icon icon-red">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3>Miedo al error</h3>
+        <p>Practicar en situaciones reales de trabajo tiene costes altos. Ofrecemos un entorno seguro para fallar.</p>
+      </div>
+      <div class="problem-card fade-up">
+        <div class="problem-icon icon-purple">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        </div>
+        <h3>Falta de feedback</h3>
+        <p>Es dificil recibir criticas constructivas objetivas en el dia a dia. Nuestra IA analiza cada matiz.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it Works -->
+<section class="section how" id="como-funciona">
+  <div class="container">
+    <div class="section-header-center">
+      <h2 class="section-title fade-up">Tres pasos para mejorar tus habilidades</h2>
+    </div>
+    <div class="how-steps">
+      <div class="how-step fade-up">
+        <div class="step-number">1</div>
+        <h3>Elige tu formacion</h3>
+        <p>Selecciona el area que deseas fortalecer, desde liderazgo hasta negociacion.</p>
+      </div>
+      <div class="how-step fade-up">
+        <div class="step-number">2</div>
+        <h3>Practica con IA</h3>
+        <p>Enfrentate a avatares realistas en simulaciones dinamicas y ajustadas a tu nivel.</p>
+      </div>
+      <div class="how-step fade-up">
+        <div class="step-number">3</div>
+        <h3>Recibe feedback</h3>
+        <p>Obten un informe detallado con metricas de tono, lenguaje corporal y efectividad.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Formations -->
+<section class="section formations" id="formaciones">
+  <div class="container">
+    <div class="formations-top">
+      <div>
+        <h2 class="section-title fade-up">Explora nuestras formaciones</h2>
+        <p class="section-subtitle fade-up">Programas disenados por expertos en psicologia organizacional.</p>
+      </div>
+      <a href="#" class="btn btn-ghost fade-up">
+        Ver catalogo completo
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div class="formations-scroll">
+      <div class="formation-card fade-up">
+        <div class="formation-img">
+          <img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=260&fit=crop" alt="Toma de requisitos" loading="lazy">
+          <span class="formation-badge badge-available">Disponible</span>
+        </div>
+        <div class="formation-body">
+          <h3>Toma de Requisitos</h3>
+          <p>Aprende a extraer requisitos de software entrevistando usuarios con distintos perfiles.</p>
+          <span class="formation-btn">Empezar modulo <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+      <div class="formation-card fade-up">
+        <div class="formation-img">
+          <img src="https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=260&fit=crop" alt="Liderazgo" loading="lazy">
+          <span class="formation-badge badge-available">Disponible</span>
+        </div>
+        <div class="formation-body">
+          <h3>Liderazgo de equipos</h3>
+          <p>Aprende a dirigir, motivar y guiar equipos de alto rendimiento en entornos complejos.</p>
+          <span class="formation-btn">Empezar modulo <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+      <div class="formation-card fade-up">
+        <div class="formation-img">
+          <img src="https://images.unsplash.com/photo-1556745757-8d76bdb6984b?w=400&h=260&fit=crop" alt="Negociacion" loading="lazy">
+          <span class="formation-badge badge-available">Disponible</span>
+        </div>
+        <div class="formation-body">
+          <h3>Negociacion avanzada</h3>
+          <p>Tecnicas de negociacion Harvard para cerrar acuerdos beneficiosos y duraderos.</p>
+          <span class="formation-btn">Empezar modulo <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+      <div class="formation-card fade-up">
+        <div class="formation-img">
+          <img src="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?w=400&h=260&fit=crop" alt="Conflictos" loading="lazy">
+          <span class="formation-badge badge-soon">Proximamente</span>
+        </div>
+        <div class="formation-body">
+          <h3>Gestion de conflictos</h3>
+          <p>Como resolver situaciones tensas y convertirlas en oportunidades constructivas.</p>
+          <span class="formation-btn">Notificarme <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section features" id="features">
+  <div class="container">
+    <div class="features-layout">
+      <div class="features-grid">
+        <div class="feature-card fade-up">
+          <div class="feature-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <h3>Avatares Realistas</h3>
+          <p>IA generativa que reproduce expresiones, entonacion a voz sintetica y tono de voz realistas.</p>
+        </div>
+        <div class="feature-card fade-up">
+          <div class="feature-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+          </div>
+          <h3>Reconocimiento de Voz</h3>
+          <p>Analiza en tiempo real tu diccion, velocidad y pausas estrategicas.</p>
+        </div>
+        <div class="feature-card fade-up">
+          <div class="feature-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3>Feedback Personalizado</h3>
+          <p>Algoritmos que identifican patron y puntos de mejora especificos.</p>
+        </div>
+        <div class="feature-card fade-up">
+          <div class="feature-icon">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          </div>
+          <h3>Adaptabilidad</h3>
+          <p>La dificultad de los escenarios escala automaticamente segun tu progreso.</p>
+        </div>
+      </div>
+      <div class="features-right fade-up">
+        <h2>Tecnologia disenada para tu crecimiento</h2>
+        <p>Nuestra infraestructura combina Large Language Models con vision computacional para ofrecer la experiencia de entrenamiento mas inmersiva del mercado.</p>
+        <div class="testimonial">
+          <blockquote>"El realismo de los escenarios es impactante. Sientes la misma presion que en una reunion real con un cliente difcil."</blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar"></div>
+            <div>
+              <div class="testimonial-name">Javier M., Director de Ventas</div>
+              <div class="testimonial-role">NexGen Solutions</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<section class="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="fade-up">
+        <div class="stat-number">92%</div>
+        <div class="stat-label">de los usuarios mejoran sus metricas en solo 1 mes</div>
+      </div>
+      <div class="fade-up">
+        <div class="stat-number">3x</div>
+        <div class="stat-label">mas retencion que con metodos de formacion teorica</div>
+      </div>
+      <div class="fade-up">
+        <div class="stat-number">50.000+</div>
+        <div class="stat-label">simulaciones completadas por profesionales</div>
+      </div>
+      <div class="fade-up">
+        <div class="stat-number">4.8/5</div>
+        <div class="stat-label">valoracion media de nuestros usuarios</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="section pricing" id="precios">
+  <div class="container">
+    <div class="section-header-center">
+      <h2 class="section-title fade-up">Inversion en tu futuro profesional</h2>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card fade-up">
+        <h3>Free</h3>
+        <div class="price">$0<span>/mes</span></div>
+        <p class="price-desc">Para explorar la plataforma</p>
+        <ul>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Acceso basico</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>3 simulaciones/mes</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Feedback resumido</li>
+        </ul>
+        <a href="#cta" class="btn btn-outline">Empezar ahora</a>
+      </div>
+      <div class="price-card fade-up">
+        <h3>Especializado</h3>
+        <div class="price">$19<span>/mes</span></div>
+        <p class="price-desc">Una ruta especifica de mejora</p>
+        <ul>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Una ruta especifica</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Simulaciones ilimitadas</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Certificado de modulo</li>
+        </ul>
+        <a href="#cta" class="btn btn-outline">Elegir plan</a>
+      </div>
+      <div class="price-card popular fade-up">
+        <div class="popular-badge">Mas popular</div>
+        <h3>Pro</h3>
+        <div class="price">$49<span>/mes</span></div>
+        <p class="price-desc">Acceso completo a todo</p>
+        <ul>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Todas las habilidades</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Escenarios exclusivos</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Soporte preferente</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>API personal</li>
+        </ul>
+        <a href="#cta" class="btn btn-primary">Acceso Total</a>
+      </div>
+      <div class="price-card fade-up" id="empresas">
+        <h3>Enterprise</h3>
+        <div class="price">Custom</div>
+        <p class="price-desc">Para equipos y organizaciones</p>
+        <ul>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Gestion de equipos</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Escenarios a medida</li>
+          <li><svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>Panel de analytics HR</li>
+        </ul>
+        <div class="enterprise-sub">
+          <strong>1-3 usuarios:</strong> $39/usuario/mes<br>
+          <strong>4-10 usuarios:</strong> $29/usuario/mes<br>
+          <strong>+10 usuarios:</strong> Contacta con nosotros
+        </div>
+        <a href="mailto:hola@practiq.ai" class="btn btn-outline" style="margin-top:16px">Contactar</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="final-cta" id="cta">
+  <div class="container">
+    <h2 class="fade-up">Empieza a practicar hoy</h2>
+    <p class="fade-up">Unete a mas de 50.000 profesionales que ya estan mejorando sus habilidades con IA.</p>
+    <div class="cta-form fade-up">
+      <input type="email" class="cta-input" placeholder="tu@email.com" aria-label="Email">
+      <button class="btn btn-primary">Empieza gratis</button>
+    </div>
+    <p class="cta-note fade-up">Sin tarjeta de credito · Cancela en cualquier momento</p>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="logo">
+          <div class="logo-icon"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+          PractiQ
+        </a>
+        <p>Potenciando el desarrollo humano a traves de la inteligencia artificial y la practica deliberada.</p>
+      </div>
+      <div>
+        <h4>Plataforma</h4>
+        <a href="#formaciones">Formaciones</a>
+        <a href="#como-funciona">Simulaciones</a>
+        <a href="#precios">Precios</a>
+        <a href="#">Casos de exito</a>
+      </div>
+      <div>
+        <h4>Empresa</h4>
+        <a href="#">Sobre nosotros</a>
+        <a href="#">Blog</a>
+        <a href="#">Privacidad</a>
+        <a href="#">Terminos</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 PractiQ. Todos los derechos reservados.</span>
+      <div class="footer-social">
+        <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+        <a href="#" aria-label="Twitter"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+const navbar = document.getElementById('navbar');
+window.addEventListener('scroll', () => { navbar.classList.toggle('scrolled', window.scrollY > 20); }, { passive: true });
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); } });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+document.querySelectorAll('a[href^="#"]').forEach(link => {
+  link.addEventListener('click', e => {
+    const id = link.getAttribute('href'); if (id === '#') return;
+    const t = document.querySelector(id);
+    if (t) { e.preventDefault(); window.scrollTo({ top: t.offsetTop - navbar.offsetHeight - 20, behavior: 'smooth' }); }
+  });
+});
+</script>
+</body>
+</html>

@@ -18,9 +18,12 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-279286827157-gp8v2lc4ojoqupr20bhqtmccvt4t6kbd.apps.googleusercontent.com}
     ports:
-      - "3000:3000"
+      - "3010:3000"
     env_file:
       - .env.docker
     environment:
