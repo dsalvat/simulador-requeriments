@@ -25,8 +25,10 @@ export function useDeepgram() {
       mediaStreamRef.current = stream;
 
       // 2. Get token from server
-      const tokenRes = await apiFetch('/api/deepgram-token', {
+      const tokenRes = await apiFetch('/api/tokens', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'deepgram' }),
       });
       if (!tokenRes.ok) throw new Error('Failed to get Deepgram token');
       const tokenData = await tokenRes.json();

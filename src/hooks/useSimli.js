@@ -30,10 +30,10 @@ export function useSimli() {
     await waitForRefs();
 
     // 1. Get session token from server
-    const res = await apiFetch('/api/simli-token', {
+    const res = await apiFetch('/api/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ faceId })
+      body: JSON.stringify({ type: 'simli', faceId })
     });
     if (!res.ok) throw new Error(`Simli token failed: ${res.status}`);
     const sessionData = await res.json();
