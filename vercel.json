@@ -2,6 +2,10 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/services-status", "destination": "/api/formations?action=services-status" },
+    { "source": "/api/admin/organizations/:id/members/:uid", "destination": "/api/admin/organizations?id=:id&sub=members&uid=:uid" },
+    { "source": "/api/admin/organizations/:id/members", "destination": "/api/admin/organizations?id=:id&sub=members" },
+    { "source": "/api/admin/organizations/:id/formations", "destination": "/api/admin/organizations?id=:id&sub=formations" },
+    { "source": "/api/admin/organizations/:id", "destination": "/api/admin/organizations?id=:id" },
     { "source": "/api/admin/users/:id/organizations", "destination": "/api/admin/users/[id]?sub=organizations" },
     { "source": "/api/admin/users/:id", "destination": "/api/admin/users/[id]" },
     { "source": "/api/admin/sessions/:id", "destination": "/api/admin/sessions/[id]" },
